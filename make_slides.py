@@ -523,7 +523,7 @@ def rect(slide, l, t, w, h, fill=WHITE, line=None):
 
 def txb(slide, text, l, t, w, h,
         sz=14, bold=False, italic=False,
-        color=DARK, align=PP_ALIGN.LEFT, font='Calibri'):
+        color=DARK, align=PP_ALIGN.LEFT, font='Times New Roman'):
     box = slide.shapes.add_textbox(l, t, w, h)
     tf  = box.text_frame; tf.word_wrap = True
     p   = tf.paragraphs[0]; p.alignment = align
@@ -543,12 +543,12 @@ def bullets(slide, items, l, t, w, h, sz=14, color=DARK, gap=Pt(7)):
         first = False; p.space_after = gap
         run = p.add_run()
         if sub:
-            run.text = f'   ◦  {txt}'
+            run.text = f'   {txt}'
             run.font.size = Pt(sz-1.5); run.font.color.rgb = GRAY
         else:
-            run.text = f'▸  {txt}'
+            run.text = f'{txt}'
             run.font.size = Pt(sz); run.font.color.rgb = color
-        run.font.name = 'Calibri'
+        run.font.name = 'Times New Roman'
 
 def picture(slide, buf_or_path, l, t, w, h=None):
     """Accepts BytesIO or file path."""
@@ -609,7 +609,7 @@ def table(slide, headers, rows, l, t, w, h,
         p = c.text_frame.paragraphs[0]; p.alignment = align
         run = p.add_run()
         run.text = str(text); run.font.size = Pt(sz)
-        run.font.bold = bold; run.font.color.rgb = fg; run.font.name = 'Calibri'
+        run.font.bold = bold; run.font.color.rgb = fg; run.font.name = 'Times New Roman'
         c.fill.solid(); c.fill.fore_color.rgb = bg
 
     for j, h_txt in enumerate(headers):
