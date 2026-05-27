@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "mcp__ide__executeCode",
+      "Bash(python make_slides.py)",
+      "Bash(dir \"D:\\\\HOCTAP\\\\HK3\\\\TimeSeries\\\\Week5_Slides.pptx\")",
+      "Bash(pip install *)",
+      "Bash(dir \"D:\\\\HOCTAP\\\\HK3\\\\TimeSeries\")",
+      "Bash(dir \"D:\\\\HOCTAP\\\\HK3\\\\TimeSeries\" /B /S)",
+      "Bash(python *)"
+    ]
+  }
+}
