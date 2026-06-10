@@ -20,7 +20,14 @@
       "PowerShell($pypath = \"C:\\\\Users\\\\UEL\\\\AppData\\\\Local\\\\Python\\\\bin\\\\python.exe\"; & $pypath -m pip install datasets 2>&1 | Select-Object -Last 3)",
       "PowerShell($pypath = \"C:\\\\Users\\\\UEL\\\\AppData\\\\Local\\\\Python\\\\bin\\\\python.exe\"; Set-Location \"C:\\\\Users\\\\UEL\\\\TimeSeriesMrSu\"; & $pypath make_slides.py 2>&1)",
       "PowerShell(Get-Process *)",
-      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\UEL\\\\TimeSeriesMrSu\" | Select-Object Name, LastWriteTime, @{N='Size\\(KB\\)';E={[math]::Round\\($_.Length/1KB,1\\)}})"
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\UEL\\\\TimeSeriesMrSu\" | Select-Object Name, LastWriteTime, @{N='Size\\(KB\\)';E={[math]::Round\\($_.Length/1KB,1\\)}})",
+      "Bash(Out-File -FilePath \"slide_content.txt\" -Encoding utf8)",
+      "Bash(Get-Content \"slide_content.txt\" -Encoding utf8)",
+      "Bash(pip show *)",
+      "Bash(Get-ChildItem -Recurse \"D:\\\\HOCTAP\\\\HK3\\\\TimeSeries\\\\data\")",
+      "Bash(Select-Object FullName, Length)",
+      "PowerShell(Get-ChildItem -Recurse \"D:\\\\HOCTAP\\\\HK3\\\\TimeSeries\\\\data\" | Where-Object { -not $_.PSIsContainer } | Select-Object FullName, @{Name=\"Size_MB\";Expression={[math]::Round\\($_.Length/1MB, 2\\)}})",
+      "WebFetch(domain:arxiv.org)"
     ]
   }
 }

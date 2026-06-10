@@ -1,0 +1,10 @@
+#system ignore
+.DS_Store
+Thumbs.db
+.idea
+
+# files by the editor
+*.swp
+*.vscode
+.ipynb_checkpoints
+
