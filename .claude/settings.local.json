@@ -27,7 +27,10 @@
       "Bash(Get-ChildItem -Recurse \"D:\\\\HOCTAP\\\\HK3\\\\TimeSeries\\\\data\")",
       "Bash(Select-Object FullName, Length)",
       "PowerShell(Get-ChildItem -Recurse \"D:\\\\HOCTAP\\\\HK3\\\\TimeSeries\\\\data\" | Where-Object { -not $_.PSIsContainer } | Select-Object FullName, @{Name=\"Size_MB\";Expression={[math]::Round\\($_.Length/1MB, 2\\)}})",
-      "WebFetch(domain:arxiv.org)"
+      "WebFetch(domain:arxiv.org)",
+      "PowerShell(pip *)",
+      "PowerShell(wmic path *)",
+      "PowerShell(Get-CimInstance *)"
     ]
   }
 }
