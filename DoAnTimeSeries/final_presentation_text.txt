@@ -1,0 +1,114 @@
+Time Series and Forecast Project: Final
+Presentation & Delivery Instructions
+
+Purpose
+The final presentation is where your group tells the complete story of your project — from the
+question you set out to answer through to your forecasts and conclusions. By now your analysis
+should be finished; this session is about communicating it clearly and defending your choices.
+
+
+
+
+What to prepare
+Each group will present for 20-25 minutes, followed by 10-20 minutes of Q&A.
+
+1. Question and motivation (brief)
+
+Restate the question you forecast or investigated and why it matters. Keep this short — one or
+two slides. Assume the audience remembers the broad topic from your progress update.
+
+2. Data
+
+Summarize the dataset: source, frequency, sample period, and number of observations. Show
+the main time plot and point out the features that shaped your modeling (trend, seasonality,
+breaks, outliers). If you changed or extended your data since the milestone, say so.
+
+3. Methodology
+
+Walk through what you did and why, in a logical sequence:
+
+   ●​ Transformations and their justification (log, differencing, seasonal adjustment).
+   ●​ Stationarity testing (ADF, KPSS) and how it informed your modeling.
+   ●​ Model identification — how you used ACF/PACF, information criteria (AIC/BIC), or other
+      reasoning to arrive at your specification.
+   ●​ The final model(s) you estimated. If you compared several, explain the comparison.
+
+4. Results and diagnostics
+
+This is the core of the talk. Present:
+
+   ●​ Your estimated model with key coefficients and what they mean substantively
+   ●​ Residual diagnostics (Ljung-Box, residual ACF, normality) and an honest read of whether
+      assumptions hold.
+   ●​ Forecasts with prediction intervals, plotted against actuals where possible.
+   ●​ Forecast evaluation — out-of-sample accuracy using RMSE, MAE, MAPE, or a
+      comparison against a benchmark (e.g., a naïve or seasonal-naïve forecast). A model
+      that beats no benchmark is a result worth stating plainly.
+
+5. Conclusions and limitations
+
+State what you found, what it means, and where your approach falls short. Acknowledging
+limitations — short sample, structural change, assumptions that didn't fully hold — earns more
+credit than overclaiming. End with one or two sentences on what you'd do with more time or
+data.
+
+
+
+
+Format and logistics
+   ●​ Slides in any software. Aim for roughly 20–30 slides. Put detailed regression output, full
+      diagnostic panels, and code in a backup appendix rather than the main flow.
+   ●​ Every group member must present a meaningful portion. Grades include an individual
+      component, so plan speaking roles deliberately.
+   ●​ Be ready to pull up your code, notebook, or full output during Q&A. You won't present
+      code on slides, but you should be able to navigate to any result if asked.
+   ●​ Practice for timing. Going significantly over will cost you — a tight, well-rehearsed talk
+      reads as command of the material.
+
+
+
+
+Deliverables and deadlines
+Submit the following to the course portal by [start of class on presentation day / stated deadline]:
+
+   1.​ Slide file (PDF or ppt).
+   2.​ Reproducible code — your script(s) or notebook, runnable from the submitted data (or
+       snippet if the data is too big), with a short README noting any package requirements.
+   3.​ Data file or a documented link to the source.
+   4.​ Written report (PDF).
+
+Name files clearly: Group##_TimeSeries_[component]. One submission per group is
+sufficient.
+
+
+
+Evaluation criteria
+The final presentation and deliverables are graded on five dimensions:
+
+   1.​ Technical correctness — Are the methods applied and interpreted correctly?
+   2.​ Analytical depth — Did the group go beyond mechanical steps to reason about their
+       data and results?
+   3.​ Communication — Is the talk clear, well-paced, and well-structured? Are visuals legible
+       and purposeful?
+   4.​ Reproducibility — Can the instructor rerun the analysis from the submitted materials?
+   5.​ Q&A and individual contribution — Can each member explain and defend the work?
+
+The final presentation and deliverables count for 50% of the total grade.
+
+
+
+Common pitfalls to avoid
+
+   ●​ Dumping output. Every table and plot needs interpretation. If a slide has a number on it,
+      you should be able to say in one sentence why it matters.
+   ●​ Skipping forecast evaluation. A forecast with no accuracy assessment and no
+      benchmark is incomplete. Always show how good (or not) your model actually is.
+   ●​ Hiding problems. If your residuals fail a test or your model underperforms a naïve
+      benchmark, present it honestly and discuss why. Graders reward diagnosis over
+      concealment.
+   ●​ Uneven delivery. A presentation where one member clearly did the analysis and the
+      others read slides will hurt the group. Make sure everyone understands the whole
+      project.
+   ●​ Non-reproducible code. Test that your submitted code runs cleanly on a fresh machine
+      before submitting.
+

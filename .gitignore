@@ -1,0 +1,25 @@
+# Python cache/build artifacts
+__pycache__/
+*.py[cod]
+
+# Local environments
+.venv/
+venv/
+env/
+
+# Data and generated model outputs
+data/
+**/data/
+**/outputs/
+
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.synctex.gz
+*.synctex.gz.sum.synctex
+*.toc

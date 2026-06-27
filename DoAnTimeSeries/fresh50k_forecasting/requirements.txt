@@ -1,0 +1,15 @@
+pandas
+numpy
+matplotlib
+scikit-learn
+statsmodels
+lightgbm
+pyarrow
+joblib
+tqdm
+
+# Optional
+xgboost
+catboost
+shap
+polars

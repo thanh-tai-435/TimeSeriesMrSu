@@ -30,7 +30,8 @@
       "WebFetch(domain:arxiv.org)",
       "PowerShell(pip *)",
       "PowerShell(wmic path *)",
-      "PowerShell(Get-CimInstance *)"
+      "PowerShell(Get-CimInstance *)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

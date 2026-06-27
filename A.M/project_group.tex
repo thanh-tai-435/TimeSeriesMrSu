@@ -1,0 +1,1468 @@
+%% ============================================================
+%%  ĐỒ ÁN NHÓM — DỰ BÁO NHU CẦU BÁN LẺ THỰC PHẨM TƯƠI SỐNG
+%%  Dataset : FreshRetailNet-50K
+%%  Nhóm    : Gia Văn · Nam Khánh · Thanh Tài (nắm chính)
+%%
+%%  PHÂN CÔNG:
+%%    [GV]  = Gia Văn      → Chương 1 + Chương 2 (2.1.1–2.1.4)
+%%    [NK]  = Nam Khánh    → Chương 2 (2.1.5–2.1.9) + Chương 5
+%%    [TT]  = Thanh Tài    → Chương 3 + Chương 4 + Chương 6 + code
+%% ============================================================
+\documentclass[12pt,a4paper]{report}
+
+%% ── Packages ────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{setspace}
+\usepackage{tcolorbox}
+\usepackage{mdframed}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+\geometry{top=2.5cm, bottom=2.5cm, left=3.5cm, right=2.5cm}
+\onehalfspacing
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    urlcolor=cyan!70!black,
+    citecolor=green!60!black
+}
+
+%% ── Code listing style ──────────────────────────────────────
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    backgroundcolor=\color{gray!6},
+    frame=single,
+    language=Python,
+    keywordstyle=\color{blue!80!black}\bfseries,
+    commentstyle=\color{green!55!black}\itshape,
+    stringstyle=\color{orange!80!black},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=8pt,
+    showstringspaces=false,
+    captionpos=b
+}
+
+%% ── Task-owner box (màu khác nhau theo người) ──────────────
+\newcommand{\taskowner}[1]{%
+    \begin{tcolorbox}[colback=yellow!15, colframe=orange!70!black,
+        fonttitle=\bfseries\small, title=Người thực hiện: #1,
+        left=4pt, right=4pt, top=2pt, bottom=2pt]
+    \end{tcolorbox}%
+}
+
+\newcommand{\ownerGV}{\colorbox{green!20}{\textbf{[GV] Gia Văn}}}
+\newcommand{\ownerNK}{\colorbox{blue!15}{\textbf{[NK] Nam Khánh}}}
+\newcommand{\ownerTT}{\colorbox{red!15}{\textbf{[TT] Thanh Tài}}}
+
+%% ── Header / Footer ────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small Dự báo Nhu cầu Thực phẩm Tươi — FreshRetailNet-50K}
+\lhead{\small Đồ án Môn học}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+%% ============================================================
+\begin{document}
+
+%% ── Trang bìa ───────────────────────────────────────────────
+\begin{titlepage}
+    \centering
+    \includegraphics[width=3cm]{logo_uel.png}\\[0.5em]   % thay bằng logo trường nếu có
+    {\Large\bfseries ĐẠI HỌC KINH TẾ -- LUẬT}\\[0.2em]
+    {\large KHOA HỆ THỐNG THÔNG TIN}\\[2cm]
+    \rule{\linewidth}{1pt}\\[0.5em]
+    {\LARGE\bfseries DỰ BÁO NHU CẦU BÁN LẺ THỰC PHẨM TƯƠI SỐNG}\\[0.4em]
+    {\Large Ứng dụng Deep Learning trên tập dữ liệu FreshRetailNet-50K}\\[0.3em]
+    {\large Kết hợp xử lý nhu cầu bị kiểm duyệt (Censored Demand)}\\
+    \rule{\linewidth}{1pt}\\[1.5cm]
+
+    \begin{tabular}{rl}
+        \textbf{Thành viên nhóm:} & \\[0.4em]
+        \ownerGV                  & [Tên đầy đủ --- MSSV] \\[0.4em]
+        \ownerNK                  & [Tên đầy đủ --- MSSV] \\[0.4em]
+        \ownerTT                  & Phạm Trần Thanh Tài --- K234161852 \\[1em]
+        \textbf{Môn học:}         & Chuỗi Thời gian / Deep Learning \\[0.4em]
+        \textbf{Giảng viên:}      & [Tên giảng viên] \\[0.4em]
+        \textbf{Ngày nộp:}        & Tháng 6, 2026 \\
+    \end{tabular}
+    \vfill
+    {\large TP. Hồ Chí Minh, 2026}
+\end{titlepage}
+
+%% ── Phân công chi tiết ─────────────────────────────────────
+\chapter*{Bảng Phân Công Nhiệm Vụ}
+\addcontentsline{toc}{chapter}{Bảng Phân Công Nhiệm Vụ}
+\thispagestyle{fancy}
+
+% ── Tổng quan tỉ lệ ────────────────────────────────────────
+\begin{tcolorbox}[colback=gray!5, colframe=black!60,
+    title=\bfseries Phân công theo chương (tổng quan)]
+\begin{tabularx}{\textwidth}{|l|X|c|c|}
+\hline
+\textbf{Chương} & \textbf{Nội dung} & \textbf{Người làm} & \textbf{Tỉ lệ} \\
+\hline
+Tóm tắt              & Tóm tắt toàn bài                              & \ownerTT       & ---  \\
+\hline
+1                    & Giới thiệu vấn đề nghiên cứu                  & \ownerGV       & 10\% \\
+\hline
+2 (§2.1.1–2.1.4)    & Lý thuyết nền: Bán lẻ, Censored, SARIMA, RF  & \ownerGV       & 15\% \\
+\hline
+2 (§2.1.5–2.1.8)    & Lý thuyết DL: RNN, LSTM, CaLSTM, AI Agent    & \ownerNK       & 15\% \\
+\hline
+3                    & Phương pháp: Dataset, EDA, tiền xử lý        & \ownerTT       & 20\% \\
+\hline
+4                    & Kết quả \& Đánh giá mô hình                  & \ownerTT       & 25\% \\
+\hline
+5                    & Ứng dụng Dashboard / Demo                    & \ownerNK       & 10\% \\
+\hline
+6                    & Kết luận \& Khuyến nghị                      & \ownerTT       & 5\%  \\
+\hline
+\multicolumn{2}{|l|}{Slide thuyết trình}                       & Cả nhóm        & ---  \\
+\hline
+\end{tabularx}
+\end{tcolorbox}
+
+\bigskip
+
+% ══════════════════════════════════════════════════════════
+%  GIA VĂN — nhiệm vụ chi tiết
+% ══════════════════════════════════════════════════════════
+\begin{tcolorbox}[colback=green!4, colframe=green!55!black,
+    title=\bfseries \ownerGV\ — Nhiệm vụ chi tiết]
+
+\textbf{Chương 1 — Giới thiệu vấn đề nghiên cứu}
+\begin{itemize}[leftmargin=1.5em, itemsep=1pt]
+    \item[\S1.1] \textit{Tính mới:} so sánh FreshRetailNet-50K với các dataset bán lẻ thực phẩm hiện có; nêu 3 điểm mới (hourly stockout, censored ratio, multi-covariate).
+    \item[\S1.2] \textit{Tính cấp thiết:} bổ sung số liệu thiệt hại kinh tế do stockout thực phẩm tươi (lãng phí, mất doanh thu); trích dẫn báo cáo FAO hoặc nghiên cứu chuỗi cung ứng.
+    \item[\S1.3] \textit{Vấn đề nghiên cứu:} phát biểu rõ 3 câu hỏi nghiên cứu tương ứng 3 mục tiêu của đề tài.
+    \item[\S1.4] \textit{Đối tượng \& phạm vi:} mô tả phạm vi địa lý (18 thành phố), thời gian (90 ngày), SKU (865 sản phẩm tươi).
+    \item[\S1.5] \textit{Lý do nghiên cứu:} vai trò của dự báo nhu cầu trong giảm lãng phí thực phẩm và tăng doanh thu bán lẻ.
+\end{itemize}
+
+\medskip
+\textbf{Chương 2 — Lý thuyết nền (§2.1.1–2.1.4)}
+\begin{itemize}[leftmargin=1.5em, itemsep=1pt]
+    \item[\S2.1.1] \textit{Demand Forecasting:} định nghĩa bài toán, tính mùa vụ đa cấp (7-ngày, tháng, năm), ảnh hưởng của giá và khuyến mãi. Thêm 2–3 trích dẫn tài liệu bán lẻ.
+    \item[\S2.1.2] \textit{Censored Demand:} viết đầy đủ lý thuyết Tobit regression (Tobin, 1958); so sánh 4 phương pháp xử lý (Deletion, Mean Imputation, Tobit, Survival Analysis) với ưu/nhược điểm cụ thể.
+    \item[\S2.1.3] \textit{SARIMA/SARIMAX:} trình bày công thức đầy đủ, ý nghĩa từng tham số $(p,d,q)(P,D,Q)[s]$; giải thích tại sao $s=7$ phù hợp với data tuần; nêu hạn chế khi scale lên 50.000 chuỗi.
+    \item[\S2.1.4] \textit{Random Forest:} trình bày Bagging, cơ chế OOB error, Feature Importance (MDI); giải thích cách chuyển chuỗi thời gian thành bài toán supervised với sliding window.
+    \item[\S2.2] \textit{Tổng quan nghiên cứu} (phần hướng 1 + hướng 2): điền citation đầy đủ cho Narayanan (2015), Chen (2022), Ferreira (2016), Bandara (2020).
+\end{itemize}
+
+\medskip
+\textbf{Tài liệu tham khảo:} bổ sung ít nhất 4 tài liệu liên quan phần GV phụ trách (Tobin 1958 đã có; thêm 3 tài liệu về demand forecasting và censored demand).
+
+\end{tcolorbox}
+
+\bigskip
+
+% ══════════════════════════════════════════════════════════
+%  NAM KHÁNH — nhiệm vụ chi tiết
+% ══════════════════════════════════════════════════════════
+\begin{tcolorbox}[colback=blue!4, colframe=blue!50!black,
+    title=\bfseries \ownerNK\ — Nhiệm vụ chi tiết]
+
+\textbf{Chương 2 — Lý thuyết DL (§2.1.5–2.1.8)}
+\begin{itemize}[leftmargin=1.5em, itemsep=1pt]
+    \item[\S2.1.5] \textit{RNN:} viết đầy đủ phần còn trống --- kiến trúc unfold theo thời gian, vanishing/exploding gradient problem (chứng minh bằng công thức đạo hàm chuỗi), khi nào nên dùng RNN thay LSTM.
+    \item[\S2.1.6] \textit{LSTM:} giải thích trực quan bằng ngôn ngữ tự nhiên (không chỉ công thức) cho 3 cổng và cell state; so sánh với GRU (số tham số ít hơn, khi nào GRU đủ tốt).
+    \item[\S2.1.7] \textit{CaLSTM:} đây là đóng góp chính --- đảm bảo nội dung nhất quán với phần lý thuyết đã viết sẵn; bổ sung phân tích trực quan tại sao weighted loss hiệu quả hơn imputation.
+    \item[\S2.1.8] \textit{AI Agent:} viết phần còn trống --- định nghĩa vòng lặp Perception–Reasoning–Action; ví dụ áp dụng cụ thể vào inventory management (agent nhận dự báo → quyết định đặt hàng → quan sát kết quả).
+\end{itemize}
+
+\medskip
+\textbf{Chương 5 — Ứng dụng Dashboard}
+\begin{itemize}[leftmargin=1.5em, itemsep=1pt]
+    \item[\S5.1] \textit{Kiến trúc hệ thống:} hoàn thiện sơ đồ kiến trúc (đã có khung TikZ); mô tả từng thành phần (Data layer, Processing, Model serving, UI); nêu công nghệ sử dụng (FastAPI, Streamlit, hoặc lựa chọn khác).
+    \item[\S5.2] \textit{Giao diện API:} mô tả ít nhất 3 endpoint (POST /predict, GET /status, GET /history); bổ sung ví dụ JSON request/response hoàn chỉnh với tất cả trường dữ liệu.
+    \item[\S5.3] \textit{Demo \& Kết quả:} chụp màn hình dashboard chạy thực; chọn ít nhất 1 cặp (store\_id, product\_id) cụ thể, hiển thị biểu đồ forecast 7 ngày so với actual; mô tả tính năng cảnh báo stockout.
+    \item[\S5.4] \textit{Đánh giá ứng dụng:} nêu tốc độ phản hồi API (ms), điểm mạnh/hạn chế, hướng cải thiện trong tương lai.
+\end{itemize}
+
+\medskip
+\textbf{Tài liệu tham khảo:} bổ sung ít nhất 2 tài liệu về AI Agent và 1 tài liệu về hệ thống dashboard/inventory.
+
+\end{tcolorbox}
+
+\bigskip
+
+% ══════════════════════════════════════════════════════════
+%  THANH TÀI — nhiệm vụ chi tiết
+% ══════════════════════════════════════════════════════════
+\begin{tcolorbox}[colback=red!4, colframe=red!55!black,
+    title=\bfseries \ownerTT\ — Nhiệm vụ chi tiết (Người nắm chính)]
+
+\textbf{Tóm tắt} — viết sau cùng khi có kết quả thực nghiệm (150–200 từ, gồm bối cảnh, phương pháp, số liệu WAPE/WPE thực tế, đóng góp chính CaLSTM).
+
+\medskip
+\textbf{Chương 3 — Phương pháp}
+\begin{itemize}[leftmargin=1.5em, itemsep=1pt]
+    \item[\S3.1] \textit{Bối cảnh:} đã có; kiểm tra lại cho nhất quán với kết quả thực tế.
+    \item[\S3.2] \textit{Phát biểu bài toán:} đã có; đảm bảo ký hiệu $L, H, c_t$ thống nhất với Chương 4.
+    \item[\S3.3] \textit{Mô tả dataset:} điền kết quả \texttt{train.shape}, \texttt{eval.shape} thực tế sau khi load; kiểm tra lại số chuỗi và số trường.
+    \item[\S3.4] \textit{EDA --- phân phối sale\_amount:} chạy \texttt{frn\_eda.py}, chèn histogram bán thực của \texttt{sale\_amount}, pie chart tỉ lệ stockout, heatmap theo giờ trong ngày.
+    \item[\S3.4] \textit{EDA --- mùa vụ:} chèn biểu đồ ACF/PACF trên chuỗi tổng hợp (đã chạy được), kết quả ADF test, seasonal decomposition.
+    \item[\S3.4] \textit{EDA --- tương quan:} chèn correlation matrix giữa \texttt{sale\_amount} và các covariate (discount, temperature, holiday\_flag).
+    \item[\S3.5] \textit{Tiền xử lý:} đã có code; bổ sung kết quả số lượng ngày bị censored (\% trên toàn tập), phân phối \texttt{censored\_ratio}.
+\end{itemize}
+
+\medskip
+\textbf{Chương 4 — Kết quả \& Đánh giá}
+\begin{itemize}[leftmargin=1.5em, itemsep=1pt]
+    \item[\S4.1] \textit{Thiết lập thực nghiệm:} đã có; bổ sung thông tin phần cứng (CPU/GPU, RAM) để reproducibility.
+    \item[\S4.2] \textit{Baseline Naive \& SARIMA:} chạy và điền WAPE/WPE thực tế vào Bảng~\ref{tab:baseline}.
+    \item[\S4.3] \textit{Random Forest:} điền kết quả; thêm biểu đồ Feature Importance top-10 (đã có placeholder hình).
+    \item[\S4.4] \textit{RNN:} chạy và điền kết quả; thêm biểu đồ actual vs predicted trên 1 chuỗi đại diện.
+    \item[\S4.4] \textit{LSTM standard:} tương tự; so sánh với RNN.
+    \item[\S4.4] \textit{CaLSTM:} điền kết quả; thêm biểu đồ so sánh WPE bias giữa LSTM và CaLSTM (đã có placeholder).
+    \item[\S4.5] \textit{Tác động censored demand:} điền 3 dòng trong bảng so sánh 3 chiến lược; phân tích tại sao WPE thay đổi.
+    \item[\S4.6] \textit{Đánh giá tổng hợp:} điền bảng tổng hợp tất cả mô hình; thêm 1 đoạn nhận xét chính.
+    \item[\S4.7] \textit{Walk-Forward Backtest:} chạy \texttt{frn\_backtest.py}; chèn biểu đồ WAPE theo fold (đã có placeholder).
+    \item[\S4.7] \textit{Inventory Simulation:} điền Bảng~Chiến lược 1 và Chiến lược 2; chèn biểu đồ stockout rate vs fill rate.
+\end{itemize}
+
+\medskip
+\textbf{Chương 6 — Kết luận}
+\begin{itemize}[leftmargin=1.5em, itemsep=1pt]
+    \item[\S6.1] \textit{Kết luận chính:} điền số liệu thực tế (CaLSTM đạt WAPE = ??, WPE = ??); so sánh với paper baseline (31.56\% / $-4.89\%$).
+    \item[\S6.2] \textit{Khuyến nghị:} đã có 4 hướng; mở rộng mỗi hướng thêm 1 câu cụ thể hơn.
+\end{itemize}
+
+\medskip
+\textbf{Phụ lục \& Code}
+\begin{itemize}[leftmargin=1.5em, itemsep=1pt]
+    \item Phụ lục A: chèn biểu đồ EDA chi tiết (boxplot theo category, heatmap theo city).
+    \item Phụ lục B: đã có bảng siêu tham số --- điền giá trị thực sau tuning.
+    \item Phụ lục C: kiểm tra lại lệnh \texttt{streamlit run} đúng với cấu trúc thư mục thực tế.
+    \item Code: hoàn thành \texttt{frn\_eda.py}, \texttt{frn\_train.py}, \texttt{frn\_backtest.py}; đảm bảo chạy được end-to-end từ raw parquet đến kết quả bảng.
+\end{itemize}
+
+\end{tcolorbox}
+
+%% ── Mục lục ────────────────────────────────────────────────
+\tableofcontents
+\newpage
+\listoffigures
+\listoftables
+\newpage
+
+%% ── Tóm tắt ─────────────────────────────────────────────────
+\chapter*{Tóm Tắt}
+\addcontentsline{toc}{chapter}{Tóm Tắt}
+\ownerTT
+\thispagestyle{fancy}
+
+Đề tài tập trung xây dựng hệ thống dự báo nhu cầu bán lẻ thực phẩm tươi sống trên tập dữ liệu FreshRetailNet-50K --- một trong những tập dữ liệu quy mô lớn đầu tiên tích hợp đồng thời dữ liệu bán hàng theo giờ, trạng thái hết hàng (stockout), và nhiều đặc trưng ngữ cảnh như thời tiết, giảm giá và ngày lễ. Điểm đặc biệt của dataset là khoảng 20\% dữ liệu bị kiểm duyệt tự nhiên (censored demand) do stockout --- khi hết hàng, hệ thống ghi nhận doanh số bằng 0 thay vì phản ánh nhu cầu thực.
+
+Nghiên cứu triển khai và so sánh các mô hình từ thống kê (SARIMA), học máy (Random Forest) đến học sâu (RNN, LSTM) trên bài toán dự báo \texttt{sale\_amount} 7 ngày tới. Đóng góp chính là \textbf{CaLSTM} --- mô hình end-to-end nhận biết censoring qua weighted loss, không cần bước khôi phục demand tường minh. Kết quả được đánh giá bằng WAPE/WPE (theo paper gốc) và backtest mô phỏng tồn kho thực tế.
+
+Kết quả cho thấy [điền kết quả thực tế sau khi chạy thực nghiệm]. Một ứng dụng demo được phát triển để trực quan hóa dự báo và đề xuất tồn kho cho từng cặp (cửa hàng, sản phẩm).
+
+\textbf{Từ khóa:} chuỗi thời gian, dự báo nhu cầu, thực phẩm tươi, LSTM, censored demand, FreshRetailNet-50K.
+
+\newpage
+
+%% ============================================================
+%%  CHƯƠNG 1 — GIỚI THIỆU VẤN ĐỀ NGHIÊN CỨU
+%%  Người thực hiện: Gia Văn
+%% ============================================================
+\chapter{Giới Thiệu Vấn Đề Nghiên Cứu}
+\ownerGV
+
+\section{Tính mới của đề tài}
+
+Thị trường bán lẻ thực phẩm tươi sống tại Việt Nam và Trung Quốc đang tăng trưởng nhanh chóng, đặc biệt với sự bùng nổ của các chuỗi cửa hàng tiện lợi và siêu thị mini. Không giống thực phẩm khô, thực phẩm tươi có hạn sử dụng ngắn, đòi hỏi quản lý tồn kho chính xác từng ngày.
+
+Tính mới của đề tài nằm ở việc khai thác tập dữ liệu \textbf{FreshRetailNet-50K} (công bố năm 2025), bộ dữ liệu đầu tiên cung cấp đồng thời:
+\begin{itemize}
+    \item Dữ liệu bán hàng theo giờ (24 giá trị/ngày) trên 50.000 chuỗi thời gian 90 ngày.
+    \item Trạng thái hết hàng (stockout) theo giờ --- cho phép xác định chính xác khoảng thời gian nhu cầu bị kiểm duyệt.
+    \item Đặc trưng ngữ cảnh phong phú: giảm giá, ngày lễ, nhiệt độ, độ ẩm, lượng mưa, tốc độ gió.
+\end{itemize}
+
+[Gia Văn bổ sung thêm nội dung về tính mới so với các nghiên cứu hiện có]
+
+\section{Tính cấp thiết của đề tài}
+
+\textbf{Vấn đề cốt lõi — Vòng lặp Hết hàng:} Khi một sản phẩm hết hàng, hệ thống ghi nhận doanh số $= 0$. Mô hình học trên dữ liệu này sẽ \textit{underestimate} nhu cầu thực, dẫn đến đặt hàng thiếu ở kỳ tiếp theo, tiếp tục hết hàng --- tạo thành vòng lặp tự củng cố.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, rounded corners, text width=2.8cm,
+                align=center, minimum height=1cm, font=\small},
+    arrow/.style={->, thick, >=stealth, line width=1pt}
+]
+    \node[box, fill=red!25]    (A) at (0, 2)  {Hết hàng\\(stockout)};
+    \node[box, fill=orange!25] (B) at (5, 2)  {Doanh số\\ghi nhận $= 0$};
+    \node[box, fill=yellow!30] (C) at (5, 0)  {Mô hình ước\\lượng thấp};
+    \node[box, fill=green!25]  (D) at (0, 0)  {Đặt hàng\\thiếu};
+    \draw[arrow] (A) -- node[above, font=\tiny]{quan sát} (B);
+    \draw[arrow] (B) -- node[right, font=\tiny]{huấn luyện} (C);
+    \draw[arrow] (C) -- node[below, font=\tiny]{quyết định} (D);
+    \draw[arrow] (D) -- node[left,  font=\tiny]{chu kỳ tiếp} (A);
+\end{tikzpicture}
+\caption{Vòng lặp hết hàng do censored demand}
+\end{figure}
+
+[Gia Văn bổ sung số liệu thực tế về thiệt hại kinh tế do stockout và thất thoát thực phẩm tươi]
+
+\section{Vấn đề được nghiên cứu}
+
+Đề tài tập trung giải quyết ba vấn đề:
+\begin{enumerate}
+    \item \textbf{Dự báo nhu cầu hàng ngày:} Dự báo \texttt{sale\_amount} cho ngày tiếp theo hoặc 7 ngày tới.
+    \item \textbf{Xử lý censored demand:} So sánh hiệu suất mô hình khi huấn luyện trên dữ liệu gốc (bị censored) với dữ liệu đã impute.
+    \item \textbf{Tích hợp đặc trưng phụ trợ:} Đánh giá tác động của thời tiết, giảm giá, ngày lễ lên độ chính xác dự báo.
+\end{enumerate}
+
+\section{Đối tượng và Phạm vi Nghiên cứu}
+
+\textbf{Đối tượng:} Hệ thống dự báo nhu cầu tự động cho 50.000 cặp (cửa hàng, sản phẩm) từ 898 cửa hàng thuộc 18 thành phố, 865 SKU thực phẩm tươi.
+
+\textbf{Phạm vi:}
+\begin{itemize}
+    \item Dữ liệu: 90 ngày/chuỗi (train: 4.500.000 bản ghi, eval: 350.000 bản ghi).
+    \item Đơn vị dự báo: ngày (daily \texttt{sale\_amount}).
+    \item Đánh giá: WAPE (Weighted Absolute Percentage Error) và WPE (Weighted Percentage Error) trên tập eval, theo chuẩn metric của paper gốc FreshRetailNet-50K. WPE âm biểu thị xu hướng \textit{underestimate} (nguy hiểm — dẫn đến stockout), WPE dương biểu thị \textit{overestimate} (lãng phí tồn kho).
+\end{itemize}
+
+\section{Lý do Nghiên cứu}
+
+[Gia Văn bổ sung: tầm quan trọng với chuỗi cung ứng thực phẩm, giảm lãng phí thực phẩm, tăng doanh thu]
+
+\newpage
+
+%% ============================================================
+%%  CHƯƠNG 2 — TỔNG QUAN TÌNH HÌNH NGHIÊN CỨU
+%%  §2.1.1–2.1.4 : Gia Văn
+%%  §2.1.5–2.1.9 : Nam Khánh
+%% ============================================================
+\chapter{Cơ Sở Lý Thuyết và Tổng Quan Nghiên Cứu}
+
+\section{Cơ sở Lý thuyết}
+
+\subsection{Bài toán Dự báo Nhu cầu Bán lẻ (Demand Forecasting)}
+\ownerGV
+
+Dự báo nhu cầu là quá trình ước tính lượng sản phẩm khách hàng sẽ mua trong tương lai. Trong bán lẻ thực phẩm tươi, bài toán này có các đặc thù:
+
+\begin{itemize}
+    \item \textbf{Tính mùa vụ đa cấp:} Chu kỳ 7 ngày (tuần), chu kỳ theo tháng, chu kỳ năm (lễ hội, thời tiết).
+    \item \textbf{Độ nhạy với ngoại sinh:} Nhiệt độ ảnh hưởng mạnh đến nhu cầu (trời nóng → tăng rau mát, giảm thịt nấu lâu).
+    \item \textbf{Phụ thuộc chương trình khuyến mãi:} Giảm giá (\texttt{discount}) thường tạo spike cục bộ không phải xu hướng dài hạn.
+\end{itemize}
+
+[Gia Văn bổ sung lý thuyết và tài liệu tham khảo]
+
+\subsection{Nhu cầu Bị Kiểm duyệt (Censored Demand)}
+\ownerGV
+
+Nhu cầu bị kiểm duyệt (censored demand) xảy ra khi hệ thống không thể quan sát nhu cầu thực do ràng buộc cung cấp. Trong FreshRetailNet-50K:
+
+\[
+\text{Doanh số quan sát} = \min(\text{Nhu cầu thực}, \text{Tồn kho})
+\]
+
+Khi \texttt{hours\_stock\_status[h] = 1} (hết hàng giờ $h$), \texttt{hours\_sale[h]} bằng 0 không phản ánh nhu cầu thực.
+
+\textbf{Phương pháp xử lý phổ biến:}
+\begin{itemize}
+    \item \textbf{Deletion:} Loại bỏ các ngày/giờ có stockout → mất dữ liệu, thiên lệch.
+    \item \textbf{Mean Imputation:} Thay bằng trung bình cùng giờ/ngày.
+    \item \textbf{Tobit Regression:} Mô hình kinh tế lượng cho dữ liệu censored.
+    \item \textbf{Survival Analysis:} Coi nhu cầu như thời gian đến sự kiện.
+\end{itemize}
+
+[Gia Văn bổ sung lý thuyết Tobit, tài liệu tham khảo]
+
+\subsection{SARIMA và SARIMAX}
+\ownerGV
+
+SARIMA$(p,d,q)(P,D,Q)[s]$ mở rộng ARIMA bằng cách thêm thành phần mùa vụ với chu kỳ $s$:
+
+\[
+\Phi_P(B^s)\,\phi_p(B)\,(1-B)^d(1-B^s)^D\,y_t
+= \Theta_Q(B^s)\,\theta_q(B)\,\epsilon_t
+\]
+
+Với FreshRetailNet, chu kỳ mùa vụ $s=7$ (tuần) là giả thuyết tự nhiên cần kiểm tra qua ACF/PACF.
+
+SARIMAX mở rộng thêm biến ngoại sinh $X_t$ (discount, temperature, holiday):
+\[
+\hat{y}_t = \text{SARIMA component} + \beta^\top X_t
+\]
+
+\textbf{Hạn chế:} SARIMA phù hợp cho một chuỗi đơn lẻ; với 50.000 chuỗi, cần train 50.000 mô hình riêng --- tốn kém. Thực tế: dùng trên chuỗi đại diện (tổng theo city hoặc category) làm baseline.
+
+\subsection{Random Forest cho Chuỗi Thời gian}
+\ownerGV
+
+Random Forest có thể áp dụng cho chuỗi thời gian bằng cách chuyển sang bài toán học có giám sát với sliding window:
+\begin{itemize}
+    \item Đặc trưng (features): $y_{t-1}, y_{t-2}, \ldots, y_{t-n}$, discount$_t$, temperature$_t$, day\_of\_week$_t$, \ldots
+    \item Nhãn (label): $y_t$
+\end{itemize}
+
+Ưu điểm: xử lý tự nhiên đặc trưng dị biến (hỗn hợp categorical và numerical), cung cấp \textbf{feature importance} để phân tích yếu tố tác động.
+
+[Gia Văn bổ sung lý thuyết RF, Bagging, OOB error]
+
+%% ── Phần của Nam Khánh ─────────────────────────────────────
+
+\subsection{Mạng Nơ-ron Hồi tiếp (RNN)}
+\ownerNK
+
+[Nam Khánh viết: kiến trúc RNN, vanishing gradient problem, cấu trúc input-hidden-output cho chuỗi thời gian]
+
+Phương trình trạng thái ẩn của RNN:
+\[
+h_t = \tanh(W_{hh}\,h_{t-1} + W_{xh}\,x_t + b_h)
+\]
+\[
+\hat{y}_t = W_{hy}\,h_t + b_y
+\]
+
+\begin{table}[H]
+\centering
+\caption{Cấu trúc đầu vào -- đầu ra RNN cho bài toán dự báo nhu cầu}
+\begin{tabular}{lll}
+\toprule
+\textbf{Chiều} & \textbf{Ký hiệu} & \textbf{Ý nghĩa trong bài toán} \\
+\midrule
+Batch size     & $B$   & Số chuỗi mẫu trong một batch \\
+Sequence len   & $T$   & Số ngày nhìn lại ($n\_steps$) \\
+Input features & $d$   & sale\_amount + discount + weather + \ldots \\
+Hidden size    & $H$   & Số đơn vị ẩn RNN \\
+Output         & $1$   & sale\_amount ngày tiếp theo \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Long Short-Term Memory (LSTM)}
+\ownerNK
+
+[Nam Khánh viết: cổng forget, input, output; cell state; giải quyết vanishing gradient]
+
+Các phương trình LSTM:
+\begin{align}
+f_t &= \sigma(W_f \cdot [h_{t-1}, x_t] + b_f) \quad &\text{(forget gate)} \\
+i_t &= \sigma(W_i \cdot [h_{t-1}, x_t] + b_i) \quad &\text{(input gate)} \\
+\tilde{C}_t &= \tanh(W_C \cdot [h_{t-1}, x_t] + b_C) \quad &\text{(candidate)} \\
+C_t &= f_t \odot C_{t-1} + i_t \odot \tilde{C}_t \quad &\text{(cell state)} \\
+o_t &= \sigma(W_o \cdot [h_{t-1}, x_t] + b_o) \quad &\text{(output gate)} \\
+h_t &= o_t \odot \tanh(C_t) \quad &\text{(hidden state)}
+\end{align}
+
+\subsection{CaLSTM --- Mô hình End-to-End Nhận biết Kiểm duyệt}
+\ownerNK
+
+Đây là đóng góp chính của đề tài. Thay vì pipeline 2 giai đoạn (recover demand rồi mới forecast), CaLSTM (\textbf{Censoring-Aware LSTM}) học trực tiếp từ dữ liệu bị censored và dự báo nhu cầu trong một bước duy nhất. Hướng tiếp cận này được paper gốc xác nhận là chưa được khảo sát: \textit{``The two-stage framework is not end-to-end --- integrated models are not evaluated.''} \cite{frn50k2025}
+
+\subsubsection*{Ý tưởng cốt lõi}
+
+Thay vì loại bỏ hoặc impute các ngày stockout \textit{trước khi} huấn luyện, CaLSTM:
+\begin{enumerate}
+    \item \textbf{Nhận biết stockout} bằng cách đưa \texttt{censored\_ratio} trực tiếp vào vector đặc trưng.
+    \item \textbf{Học xuyên qua censoring} qua hàm mất mát có trọng số: ngày bị stockout nặng đóng góp ít vào gradient.
+    \item \textbf{Tự suy luận} nhu cầu thực từ các ngày có đầy đủ hàng, không cần bước khôi phục tường minh.
+\end{enumerate}
+
+\subsubsection*{Kiến trúc}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, rounded corners, text width=2.2cm,
+                align=center, minimum height=1cm, font=\small},
+    arrow/.style={->, thick, >=stealth}
+]
+    %% Luồng chính (hàng trên)
+    \node[box, fill=blue!15]   (inp)  at (0,   1.8) {Input $\mathbf{z}_t$\\$(T \times d)$};
+    \node[box, fill=green!15]  (lstm) at (3.5, 1.8) {LSTM\\2 lớp};
+    \node[box, fill=orange!15] (fc)   at (7,   1.8) {FC\\Dense(7)};
+    \node[box, fill=red!15]    (out)  at (10.5,1.8) {$\hat{y}_{t+1:t+7}$};
+    %% Loss (hàng dưới, căn giữa dưới LSTM)
+    \node[box, fill=gray!20]   (loss) at (3.5, 0)   {Loss $\mathcal{L}_w$\\(weighted)};
+
+    \draw[arrow] (inp)  -- (lstm);
+    \draw[arrow] (lstm) -- (fc);
+    \draw[arrow] (fc)   -- (out);
+    \draw[arrow] (lstm) -- node[right, font=\tiny]{train} (loss);
+\end{tikzpicture}
+\caption{Kiến trúc CaLSTM: luồng forward (trên) và hàm mất mát có trọng số censoring (dưới)}
+\end{figure}
+
+Vector đầu vào mỗi ngày $t$ gồm:
+\[
+\mathbf{z}_t = \underbrace{[y_t]}_{\text{sale}}
+\;\|\;
+\underbrace{[c_t]}_{\text{censored\_ratio}}
+\;\|\;
+\underbrace{[\delta_t,\, h_t,\, a_t,\, T_t,\, p_t,\, \ldots]}_{\text{discount, holiday, weather}}
+\;\|\;
+\underbrace{[\text{dow}_t,\, \text{woy}_t]}_{\text{temporal}}
+\]
+
+trong đó $c_t = \texttt{stock\_hour6\_22\_cnt}_t / 17 \in [0, 1]$ là tỉ lệ giờ hết hàng.
+
+\subsubsection*{Hàm mất mát có trọng số (Censoring-Aware Loss)}
+
+\[
+\mathcal{L}_w = \frac{1}{B \cdot H} \sum_{b=1}^{B} \sum_{h=1}^{H}
+\underbrace{(1 - c_b)}_{\text{trọng số}} \cdot \left(\hat{y}_{b,h} - y_{b,h}\right)^2
+\]
+
+\begin{itemize}
+    \item $c_b \in [0,1]$: tỉ lệ censoring của mẫu $b$ (ngày cuối look-back window).
+    \item Khi $c_b = 0$ (không stockout): trọng số $= 1$, gradient đầy đủ.
+    \item Khi $c_b = 1$ (hết hàng cả ngày): trọng số $= 0$, không đóng góp vào loss.
+    \item Giá trị trung gian: trọng số giảm tuyến tính theo mức độ stockout.
+\end{itemize}
+
+\subsubsection*{So sánh với pipeline 2 giai đoạn}
+
+\begin{table}[H]
+\centering
+\caption{CaLSTM vs pipeline 2 giai đoạn (paper)}
+\begin{tabular}{lll}
+\toprule
+\textbf{Tiêu chí} & \textbf{2-Stage (paper)} & \textbf{CaLSTM (đề tài)} \\
+\midrule
+Số mô hình        & 2 (recovery + forecast) & 1 \\
+Lỗi tích lũy      & Có (recovery sai → forecast sai) & Không \\
+Rủi ro data leakage & Có (imputation cần ngữ cảnh 2 chiều) & \textbf{Không} (dùng feature quan sát được) \\
+Dùng covariate    & Ở cả 2 giai đoạn        & Tích hợp trực tiếp \\
+Phức tạp triển khai & Cao                   & Thấp \\
+Novelty           & Đã có trong paper        & \textbf{Chưa khảo sát} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{AI Agent trong Hệ thống Dự báo}
+\ownerNK
+
+[Nam Khánh viết: khái niệm AI Agent (Perception–Reasoning–Action), ứng dụng trong inventory management, liên kết với Chương 5]
+
+\section{Tổng Quan Nghiên Cứu Liên Quan}
+
+Các nghiên cứu liên quan được phân thành 3 hướng chính:
+
+\begin{enumerate}
+    \item \textbf{Censored Demand Recovery:} \citet{narayanan2015} đề xuất phương pháp Tobit regression để ước tính nhu cầu thực từ dữ liệu bị kiểm duyệt. \citet{chen2022} kết hợp survival analysis với mô hình LSTM để xử lý stockout trong bán lẻ. Hạn chế chung: không khai thác tín hiệu stockout trực tiếp trong quá trình huấn luyện.
+
+    \item \textbf{Dự báo nhu cầu thực phẩm tươi:} \citet{ferreira2016} sử dụng Random Forest cho bán lẻ quy mô lớn (Zara). \citet{bandara2020} so sánh LSTM và SARIMA trên chuỗi thời gian bán lẻ thực phẩm. Cả hai không xét đến vấn đề censored demand.
+
+    \item \textbf{Benchmark FreshRetailNet-50K:} Paper gốc của \citet{wang2025frn50k} đề xuất pipeline 2 giai đoạn: TimesNet cho phục hồi nhu cầu tiềm ẩn (WAPE tốt nhất trên recovery task), TFT cho dự báo (WAPE = 29.02\%, WPE = +2.58\%). Paper khẳng định: \textit{``end-to-end integrated models are not evaluated''} --- đây là khoảng trống nghiên cứu mà đề tài lấp đầy bằng CaLSTM.
+\end{enumerate}
+
+\textbf{Điểm khác biệt của đề tài:} Không sử dụng pipeline 2 giai đoạn mà thiết kế CaLSTM --- mô hình đơn học trực tiếp trên dữ liệu censored thông qua weighted loss, tránh lỗi tích lũy giữa các giai đoạn.
+
+[Gia Văn + Nam Khánh bổ sung citation cụ thể, năm, tên tác giả đầy đủ]
+
+\newpage
+
+%% ============================================================
+%%  CHƯƠNG 3 — PHƯƠNG PHÁP NGHIÊN CỨU
+%%  Người thực hiện: Thanh Tài
+%% ============================================================
+\chapter{Phương Pháp Nghiên Cứu}
+\ownerTT
+
+\section{Bối cảnh Nghiên cứu}
+
+Nghiên cứu sử dụng tập dữ liệu FreshRetailNet-50K, được công bố tháng 5/2025 bởi Dingdong-Inc. Đây là benchmark đầu tiên dành riêng cho bài toán censored demand estimation trong lĩnh vực bán lẻ thực phẩm tươi, với khoảng 20\% dữ liệu bị ảnh hưởng bởi stockout tự nhiên.
+
+\section{Phát biểu Bài toán (Problem Formulation)}
+\ownerTT
+
+Cho một chuỗi thời gian bán lẻ của cặp (cửa hàng $s$, sản phẩm $p$) trong $T$ ngày lịch sử cùng với các đặc trưng ngữ cảnh $\mathbf{x}_t$ (thời tiết, khuyến mại, lịch), mục tiêu là dự báo doanh số $H$ ngày tiếp theo:
+
+\[
+\hat{\mathbf{y}}_{t+1:t+H} = f\!\left(\mathbf{y}_{t-L+1:t},\; \mathbf{x}_{t-L+1:t+H}\right)
+\]
+
+trong đó:
+\begin{itemize}
+    \item $y_t = \texttt{sale\_amount}_t$ là doanh số thực tế ngày $t$ \textbf{(có thể bị kiểm duyệt do stockout)}
+    \item $L = 14$ ngày: độ dài look-back window
+    \item $H = 7$ ngày: chân trời dự báo (forecast horizon)
+    \item $c_t = \texttt{stock\_hour6\_22\_cnt}_t / 17 \in [0,1]$: mức độ kiểm duyệt ngày $t$
+    \item Ràng buộc kiểm duyệt: $y_t = \min(\tilde{y}_t,\, q_t)$ với $\tilde{y}_t$ là nhu cầu thực và $q_t$ là tồn kho thực tế
+\end{itemize}
+
+\textbf{Đặc điểm khác biệt so với bài toán dự báo chuỗi thời gian thông thường:} khi $c_t > 0$, nhãn quan sát được $y_t$ không phản ánh nhu cầu thực $\tilde{y}_t$, khiến mô hình học từ tín hiệu sai lệch. Đây là lý do cần chiến lược đặc biệt (imputation hoặc censoring-aware loss).
+
+\textbf{Metrics đánh giá} theo paper gốc FreshRetailNet-50K:
+\[
+\text{WAPE} = \frac{\displaystyle\sum_{t} |\hat{y}_t - y_t|}{\displaystyle\sum_{t} y_t}, \qquad
+\text{WPE} = \frac{\displaystyle\sum_{t} (\hat{y}_t - y_t)}{\displaystyle\sum_{t} y_t}
+\]
+
+WAPE đo độ chính xác (nhỏ hơn tốt hơn). WPE đo độ lệch: WPE $< 0$ là underestimate (nguy hiểm — dẫn đến stockout), WPE $> 0$ là overestimate (tốn chi phí tồn kho).
+
+\section{Thu thập và Mô tả Dữ liệu}
+
+\subsection{Cấu trúc Dataset}
+
+\begin{table}[H]
+\centering
+\caption{Thông tin cơ bản tập dữ liệu FreshRetailNet-50K}
+\begin{tabular}{ll}
+\toprule
+\textbf{Thuộc tính} & \textbf{Giá trị} \\
+\midrule
+Số chuỗi thời gian & 50.000 chuỗi \\
+Số cửa hàng       & 898 (18 thành phố) \\
+Số SKU            & 865 (thực phẩm tươi) \\
+Độ dài chuỗi      & 90 ngày/chuỗi \\
+Độ phân giải      & Giờ (24 slots/ngày) \\
+Tập train         & 4.500.000 bản ghi \\
+Tập eval          & 350.000 bản ghi \\
+Tỉ lệ stockout    & $\approx 20\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Mô tả Các Trường Dữ liệu}
+
+\begin{longtable}{lp{2.5cm}p{7.5cm}}
+\caption{Mô tả chi tiết các trường dữ liệu} \\
+\toprule
+\textbf{Trường} & \textbf{Kiểu} & \textbf{Mô tả} \\
+\midrule
+\endfirsthead
+\multicolumn{3}{c}{\textit{(tiếp theo)}} \\
+\toprule
+\textbf{Trường} & \textbf{Kiểu} & \textbf{Mô tả} \\
+\midrule
+\endhead
+\texttt{city\_id}            & int64    & Mã thành phố (đã mã hóa) \\
+\texttt{store\_id}           & int64    & Mã cửa hàng \\
+\texttt{management\_group\_id} & int64  & Mã nhóm quản lý \\
+\texttt{first\_category\_id}  & int64   & Danh mục cấp 1 \\
+\texttt{second\_category\_id} & int64   & Danh mục cấp 2 \\
+\texttt{third\_category\_id}  & int64   & Danh mục cấp 3 \\
+\texttt{product\_id}         & int64    & Mã sản phẩm \\
+\texttt{dt}                  & string   & Ngày (YYYY-MM-DD) \\
+\texttt{sale\_amount}        & float64  & Doanh số ngày (đã chuẩn hóa toàn cục) $\leftarrow$ \textbf{TARGET} \\
+\texttt{hours\_sale}         & float64[24] & Doanh số theo giờ (đã chuẩn hóa) \\
+\texttt{stock\_hour6\_22\_cnt}& int32   & Số giờ hết hàng trong 6h--22h \\
+\texttt{hours\_stock\_status} & int32[24] & Trạng thái hết hàng theo giờ (0=có hàng, 1=hết) \\
+\texttt{discount}            & float64  & Tỉ lệ giảm giá (1.0=không giảm, 0.9=giảm 10\%) \\
+\texttt{holiday\_flag}       & int32    & Chỉ báo ngày lễ \\
+\texttt{activity\_flag}      & int32    & Chỉ báo hoạt động khuyến mại \\
+\texttt{precpt}              & float64  & Tổng lượng mưa \\
+\texttt{avg\_temperature}    & float64  & Nhiệt độ trung bình \\
+\texttt{avg\_humidity}       & float64  & Độ ẩm trung bình \\
+\texttt{avg\_wind\_level}    & float64  & Cấp độ gió trung bình \\
+\bottomrule
+\end{longtable}
+
+\subsection{Load Dữ liệu}
+
+\begin{lstlisting}[caption=Load FreshRetailNet-50K]
+import pandas as pd
+import pyarrow.parquet as pq
+
+# Load train set
+train = pd.read_parquet("data/data/train.parquet")
+eval_df = pd.read_parquet("data/data/eval.parquet")
+
+print(f"Train: {len(train):,} rows, {train.shape[1]} columns")
+print(f"Eval : {len(eval_df):,} rows")
+print(f"\nColumns: {list(train.columns)}")
+\end{lstlisting}
+
+\section{Phân tích Khám phá Dữ liệu (EDA)}
+
+\subsection{Phân phối Doanh số và Tỉ lệ Stockout}
+
+[Thanh Tài điền kết quả EDA: histogram sale\_amount, tỉ lệ stockout theo giờ, theo category, theo city]
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{eda_outputs/frn_sale_distribution.png}
+    \caption{Phân phối \texttt{sale\_amount} và tỉ lệ stockout theo giờ trong ngày}
+\end{figure}
+
+\subsection{Phân tích Tính Mùa vụ}
+
+[Thanh Tài: ACF/PACF của chuỗi sale\_amount tổng hợp, kiểm định ADF, seasonal decomposition]
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{eda_outputs/frn_acf_pacf.png}
+    \caption{ACF và PACF của chuỗi doanh số tổng hợp (aggregated)}
+\end{figure}
+
+\subsection{Tương quan Đặc trưng Phụ trợ}
+
+[Thanh Tài: correlation matrix giữa sale\_amount và discount, temperature, holiday\_flag, \ldots]
+
+\section{Tiền Xử lý Dữ liệu}
+
+\subsection{Xử lý Censored Demand}
+
+Chiến lược xử lý stockout:
+\begin{enumerate}
+    \item \textbf{Xác định ngày censored:} \texttt{stock\_hour6\_22\_cnt > 0} → ngày có ít nhất 1 giờ hết hàng.
+    \item \textbf{Phương án A (Baseline):} Giữ nguyên dữ liệu gốc (trained on censored data).
+    \item \textbf{Phương án B (Imputation):} Thay \texttt{hours\_sale[h]} khi \texttt{hours\_stock\_status[h]=1} bằng trung bình cùng giờ của các ngày không stockout.
+    \item \textbf{So sánh:} Huấn luyện song song cả hai phương án, đánh giá WAPE/WPE trên eval set.
+\end{enumerate}
+
+\begin{lstlisting}[caption=Đánh dấu và xử lý censored demand]
+import numpy as np
+
+def flag_censored(df):
+    """Thêm cột censored_flag = 1 nếu ngày có stockout."""
+    df = df.copy()
+    df['censored_flag'] = (df['stock_hour6_22_cnt'] > 0).astype(int)
+    df['censored_ratio'] = df['stock_hour6_22_cnt'] / 17.0  # 6h-22h = 17 giờ
+    return df
+
+def impute_censored_sales(df):
+    """Impute sale_amount bị censored bằng trung bình cùng day_of_week."""
+    df = df.copy()
+    df['dt'] = pd.to_datetime(df['dt'])
+    df['dow'] = df['dt'].dt.dayofweek
+
+    # Tính mean per (product_id, store_id, dow) từ ngày KHÔNG censored
+    non_censored = df[df['censored_flag'] == 0]
+    mean_map = (non_censored
+                .groupby(['product_id', 'store_id', 'dow'])['sale_amount']
+                .mean())
+
+    # Thay thế giá trị censored
+    mask = df['censored_flag'] == 1
+    df.loc[mask, 'sale_amount'] = df.loc[mask].apply(
+        lambda r: mean_map.get((r.product_id, r.store_id, r.dow), r.sale_amount),
+        axis=1
+    )
+    return df
+\end{lstlisting}
+
+\subsubsection*{Phân tích rủi ro Data Leakage trong Imputation}
+\ownerTT
+
+\begin{tcolorbox}[colback=yellow!8, colframe=orange!60!black, title=\textbf{Câu hỏi quan trọng: Imputation có bị ``nhìn trước tương lai'' không?}]
+Đây là vấn đề phương pháp mà nhiều nghiên cứu bỏ qua. Cần phân biệt rõ hai ngữ cảnh:
+
+\medskip
+\textbf{Trong training (batch mode --- an toàn):}
+Toàn bộ dữ liệu 90 ngày đã có sẵn. Dùng trung bình ngày cùng thứ trong tuần từ tập train để impute là hợp lệ vì:
+(1) chỉ impute trên tập train, không chạm vào test set;
+(2) mean được tính từ ngày \emph{không} stockout --- thông tin này luôn có thể quan sát được.
+
+\medskip
+\textbf{Trong production (real-time --- cần thận trọng):}
+Một số phương pháp imputation dùng dữ liệu sau ngày stockout (linear interpolation, bidirectional model) nên không thể áp dụng real-time.
+
+\medskip
+\begin{tabular}{lll}
+\toprule
+\textbf{Phương pháp} & \textbf{Dùng tương lai?} & \textbf{Ghi chú} \\
+\midrule
+LOCF (giá trị liền trước)            & Không & Hoàn toàn causal \\
+Mean theo day-of-week (backward)    & Không & Chỉ dùng lịch sử \\
+Linear interpolation (2 điểm)       & \textbf{Có} & Dùng điểm sau ngày stockout \\
+Bidirectional model (vd. TimesNet)  & \textbf{Có thể} & Tùy kiến trúc encoder \\
+\textbf{CaLSTM (đề tài)}            & \textbf{Không} & Không impute --- dùng \texttt{censored\_ratio} \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Kết luận:} Phương pháp imputation của đề tài (mean theo day-of-week từ tập train) thuộc nhóm \emph{causal} --- không dùng thông tin tương lai. Trong walk-forward backtest (Mục~\ref{sec:backtest}), mean map được tính lại từ đầu trên từng fold training để đảm bảo tính công bằng.
+
+Tuy nhiên, \textbf{CaLSTM hoàn toàn tránh được vấn đề này}: thay vì tạo ra giá trị doanh số giả, mô hình nhận \texttt{censored\_ratio} là một feature quan sát được và để neural network tự học mối quan hệ giữa mức độ stockout và nhu cầu thực.
+\end{tcolorbox}
+
+\subsection{Feature Engineering}
+
+\begin{lstlisting}[caption=Tạo đặc trưng cho mô hình]
+def create_features(df):
+    df = df.copy()
+    df['dt'] = pd.to_datetime(df['dt'])
+
+    # Temporal features
+    df['day_of_week'] = df['dt'].dt.dayofweek        # 0=Mon, 6=Sun
+    df['day_of_month'] = df['dt'].dt.day
+    df['month'] = df['dt'].dt.month
+    df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
+
+    # Lag features (per store-product)
+    for lag in [1, 2, 3, 7, 14]:
+        df[f'sale_lag{lag}'] = (df
+            .groupby(['store_id', 'product_id'])['sale_amount']
+            .shift(lag))
+
+    # Rolling statistics
+    df['sale_roll7_mean'] = (df
+        .groupby(['store_id', 'product_id'])['sale_amount']
+        .transform(lambda x: x.shift(1).rolling(7).mean()))
+
+    return df
+\end{lstlisting}
+
+\subsection{Chuẩn hóa và Chia Tập Dữ liệu}
+
+Dữ liệu đã được chuẩn hóa toàn cục bởi dataset gốc. Tuy nhiên, cần chuẩn hóa theo từng chuỗi để đảm bảo tính ổn định huấn luyện:
+
+\[
+\tilde{y}_t = \frac{y_t - \mu_{\text{train}}}{\sigma_{\text{train}}}
+\]
+
+Scaler chỉ được fit trên tập train; tập eval giữ nguyên thứ tự thời gian (chronological split).
+
+\newpage
+
+%% ============================================================
+%%  CHƯƠNG 4 — KẾT QUẢ VÀ ĐÁNH GIÁ
+%%  Người thực hiện: Thanh Tài
+%% ============================================================
+\chapter{Kết Quả và Đánh Giá}
+\ownerTT
+
+\section{Thiết lập Thực nghiệm (Experimental Setup)}
+\ownerTT
+
+\subsection{Phân chia Dữ liệu}
+
+Với mỗi chuỗi 90 ngày:
+\begin{itemize}
+    \item \textbf{Train}: ngày 1--70 (77.8\%) --- khoảng 3.888.889 bản ghi
+    \item \textbf{Validation} (early stopping): ngày 71--80 (11.1\%)
+    \item \textbf{Test}: ngày 81--90 (11.1\%) --- tương ứng tập \texttt{eval} của dataset
+\end{itemize}
+
+\textbf{Lưu ý:} Phân chia theo thứ tự thời gian, không shuffle, để tránh data leakage tương lai. Với walk-forward backtest (Mục~\ref{sec:backtest}), tập train mở rộng dần theo từng fold.
+
+\subsection{Cấu hình Huấn luyện}
+
+\begin{table}[H]
+\centering
+\caption{Thiết lập huấn luyện các mô hình Deep Learning}
+\label{tab:train_config}
+\begin{tabular}{lll}
+\toprule
+\textbf{Tham số} & \textbf{Giá trị} & \textbf{Ghi chú} \\
+\midrule
+Look-back window ($L$) & 14 ngày       & Bắt đầu từ 2 tuần lịch sử \\
+Forecast horizon ($H$) & 7 ngày        & Dự báo cả tuần tiếp theo \\
+Batch size             & 256           & \\
+Optimizer              & Adam          & $\beta_1=0.9,\; \beta_2=0.999$ \\
+Learning rate          & $10^{-3}$     & Không decay trong prototype \\
+Epochs                 & 100           & Early stopping patience = 10 \\
+Loss (RNN, LSTM)       & MSE           & Standard regression loss \\
+Loss (CaLSTM)          & Censoring-Aware MSE & Trọng số theo $1 - c_t$ \\
+Framework (DL)         & PyTorch 2.x   & CaLSTM; TensorFlow/Keras cho RNN, LSTM \\
+Framework (ML)         & scikit-learn  & Random Forest \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Kết quả Mô hình Baseline}
+
+\subsection{Naive Persistence}
+
+Mô hình baseline đơn giản nhất: nhu cầu ngày mai bằng nhu cầu ngày hôm nay.
+\[
+\hat{y}_{t+1} = y_t
+\]
+
+[Thanh Tài điền RMSE, MAE thực tế sau khi chạy]
+
+\subsection{SARIMA trên Chuỗi Đại diện}
+
+Chọn 1 chuỗi đại diện (tổng doanh số toàn bộ cửa hàng theo ngày) để chạy SARIMA$(1,1,1)(1,1,1)_7$. Chu kỳ mùa vụ $s=7$ (tuần).
+
+\begin{lstlisting}[caption=Fit SARIMA trên chuỗi tổng hợp]
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+# Tổng daily sale aggregated
+daily_agg = (train.groupby('dt')['sale_amount'].sum()
+               .reset_index().sort_values('dt'))
+series = daily_agg['sale_amount'].values
+
+# SARIMA(1,1,1)(1,1,1)[7]
+model = SARIMAX(series[:int(0.8*len(series))],
+                order=(1, 1, 1),
+                seasonal_order=(1, 1, 1, 7))
+result = model.fit(disp=False)
+forecast = result.forecast(steps=len(series) - int(0.8*len(series)))
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\caption{Kết quả Baseline --- WAPE và WPE trên tập eval}
+\label{tab:baseline}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Mô hình} & \textbf{WAPE (\%)} & \textbf{WPE (\%)} & \textbf{Ghi chú} \\
+\midrule
+Naive Persistence             & --- & --- & $\hat{y}_{t+1} = y_t$ \\
+SARIMA$(1,1,1)(1,1,1)_7$     & --- & --- & Chuỗi tổng hợp toàn quốc \\
+\midrule
+\multicolumn{4}{l}{\textit{Tham chiếu từ paper gốc}} \\
+Raw Sales + DLinear (paper)   & 31.56 & $-4.89$ & Baseline chính thức FRN-50K \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Kết quả Mô hình Machine Learning}
+
+\subsection{Random Forest}
+
+\begin{lstlisting}[caption=Random Forest với lag features và đặc trưng ngoại sinh]
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+
+FEATURE_COLS = ['sale_lag1', 'sale_lag2', 'sale_lag7',
+                'sale_roll7_mean', 'discount', 'holiday_flag',
+                'activity_flag', 'avg_temperature', 'avg_humidity',
+                'precpt', 'day_of_week', 'is_weekend']
+
+X_train = train_fe[FEATURE_COLS].dropna()
+y_train = train_fe.loc[X_train.index, 'sale_amount']
+
+rf = RandomForestRegressor(n_estimators=200, max_depth=12,
+                            random_state=42, n_jobs=-1)
+rf.fit(X_train, y_train)
+\end{lstlisting}
+
+[Thanh Tài điền kết quả, biểu đồ feature importance]
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{eda_outputs/frn_rf_importance.png}
+    \caption{Feature Importance của Random Forest --- các yếu tố tác động đến doanh số}
+\end{figure}
+
+\section{Kết quả Mô hình Deep Learning}
+\ownerTT
+
+\subsection{Mô hình RNN (Vanilla)}
+
+[Thanh Tài: kết quả Vanilla RNN, biểu đồ actual vs predicted]
+
+\begin{table}[H]
+\centering
+\caption{Kết quả RNN trên tập eval}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Mô hình} & \textbf{WAPE (\%)} & \textbf{WPE (\%)} & \textbf{Ghi chú} \\
+\midrule
+RNN (Vanilla) & --- & --- & 1 lớp, 64 units, look-back 14 ngày \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Mô hình LSTM (Standard)}
+
+\begin{lstlisting}[caption=Kiến trúc LSTM Stacked cho dự báo nhu cầu]
+def build_lstm(n_steps, n_features):
+    model = tf.keras.Sequential([
+        tf.keras.layers.LSTM(128, return_sequences=True,
+                             input_shape=(n_steps, n_features)),
+        tf.keras.layers.Dropout(0.3),
+        tf.keras.layers.LSTM(64),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Dense(32, activation='relu'),
+        tf.keras.layers.Dense(1)
+    ])
+    model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss='mse')
+    return model
+\end{lstlisting}
+
+[Thanh Tài điền kết quả LSTM, biểu đồ actual vs predicted]
+
+\subsection{Mô hình CaLSTM (End-to-End, đóng góp chính)}
+\ownerTT
+
+\begin{lstlisting}[caption=CaLSTM --- Censoring-Aware LSTM]
+import torch
+import torch.nn as nn
+
+class CaLSTM(nn.Module):
+    def __init__(self, input_dim, hidden=128, n_layers=2, horizon=7):
+        super().__init__()
+        self.lstm = nn.LSTM(input_dim, hidden, n_layers,
+                            batch_first=True, dropout=0.3)
+        self.head = nn.Sequential(
+            nn.Linear(hidden, 64),
+            nn.ReLU(),
+            nn.Linear(64, horizon)
+        )
+
+    def forward(self, x):         # x: (B, T, input_dim)
+        out, _ = self.lstm(x)
+        return self.head(out[:, -1, :])   # (B, horizon=7)
+
+
+def censoring_aware_loss(pred, target, censored_ratio):
+    """
+    pred, target      : (B, 7)
+    censored_ratio    : (B,)  -- tỉ lệ giờ stockout ngày cuối window
+    """
+    w = (1.0 - censored_ratio).clamp(0, 1).unsqueeze(1)  # (B, 1)
+    return (w * (pred - target) ** 2).mean()
+
+
+# --- Training ---
+HORIZON    = 7
+INPUT_DIM  = 10   # sale + censored_ratio + 8 features
+N_STEPS    = 14   # look-back 14 ngày
+
+model = CaLSTM(input_dim=INPUT_DIM, horizon=HORIZON)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+for epoch in range(100):
+    for x_batch, y_batch, cr_batch in train_loader:
+        pred = model(x_batch)
+        loss = censoring_aware_loss(pred, y_batch, cr_batch)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\caption{Kết quả CaLSTM vs LSTM thường (WAPE, WPE trên eval set)}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Mô hình} & \textbf{WAPE (\%)} & \textbf{WPE (\%)} & \textbf{Ghi chú} \\
+\midrule
+LSTM (standard loss)   & --- & --- & Loss không phân biệt stockout \\
+\textbf{CaLSTM (weighted loss)} & \textbf{---} & \textbf{---} & Loss có trọng số censoring \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+[Thanh Tài điền kết quả thực tế sau khi chạy]
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{eda_outputs/frn_calstm_forecast.png}
+    \caption{So sánh LSTM thường và CaLSTM --- WPE bias giảm nhờ censoring-aware loss}
+\end{figure}
+
+\section{Tác động của Censored Demand}
+
+So sánh ba chiến lược xử lý dữ liệu stockout, dùng LSTM làm mô hình cố định:
+
+\begin{table}[H]
+\centering
+\caption{Tác động chiến lược xử lý censoring lên WAPE và WPE (eval set)}
+\begin{tabular}{lccp{5cm}}
+\toprule
+\textbf{Chiến lược} & \textbf{WAPE (\%)} & \textbf{WPE (\%)} & \textbf{Mô tả} \\
+\midrule
+Raw Sales (no treatment) & --- & --- & Dùng thẳng dữ liệu gốc (baseline) \\
+Mean Imputation + LSTM   & --- & --- & Impute trước rồi train LSTM \\
+\textbf{CaLSTM (end-to-end)} & \textbf{---} & \textbf{---} & Weighted loss, không impute \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Kỳ vọng:} Raw Sales có WPE âm lớn (underestimate). Mean Imputation cải thiện WPE. CaLSTM đạt WPE gần $0$ đồng thời WAPE thấp nhất nhờ không tích lũy sai số từ bước imputation.
+
+\section{Đánh giá Tổng hợp}
+
+\begin{table}[H]
+\centering
+\caption{So sánh toàn bộ mô hình trên tập eval --- metric theo paper gốc}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Mô hình} & \textbf{WAPE (\%)} & \textbf{WPE (\%)} & \textbf{Loại} & \textbf{Covariate} \\
+\midrule
+Raw Sales + DLinear (paper baseline) & 31.56 & $-4.89$ & Baseline     & Không \\
+SARIMA$(1,1,1)(1,1,1)_7$            & ---   & ---     & Statistical  & Không \\
+Random Forest                        & ---   & ---     & ML           & Có \\
+RNN                                  & ---   & ---     & Deep Learning & Có \\
+LSTM (standard)                      & ---   & ---     & Deep Learning & Có \\
+\textbf{CaLSTM (đề tài)}            & \textbf{---} & \textbf{---} & \textbf{End-to-End} & \textbf{Có} \\
+\midrule
+\multicolumn{5}{l}{\textit{Tham chiếu từ paper (TimesNet recovery + TFT)}} \\
+TimesNet + TFT (paper best)          & 29.02 & $+2.58$ & 2-Stage      & Có \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Diễn giải WAPE và WPE:}
+\[
+\text{WAPE} = \frac{\sum_t |\hat{y}_t - y_t|}{\sum_t y_t} \qquad
+\text{WPE} = \frac{\sum_t (\hat{y}_t - y_t)}{\sum_t y_t}
+\]
+WPE âm = mô hình \textit{underestimate} nhu cầu (nguy hiểm: dễ stockout). WPE dương = \textit{overestimate} (tốn chi phí tồn kho). Mục tiêu: WAPE nhỏ \textbf{và} WPE $\approx 0$.
+
+\section{Backtest: Mô phỏng Quyết định Tồn kho}
+\label{sec:backtest}
+\ownerTT
+
+Backtest đánh giá mô hình không chỉ qua WAPE/WPE mà còn qua \textbf{tác động kinh doanh thực}: nếu nhà bán lẻ ra quyết định đặt hàng dựa trên dự báo của mô hình, tỉ lệ stockout và chi phí tồn kho sẽ thay đổi như thế nào?
+
+\subsection{Walk-Forward Validation (Statistical Backtest)}
+
+Kiểm định thống kê trên cửa sổ trượt để đánh giá độ ổn định của mô hình theo thời gian.
+
+\begin{figure}[H]
+\centering
+%% x=0.11cm: tọa độ 0..90 → 0..9.9cm, vừa vặn trong trang
+\begin{tikzpicture}[x=0.11cm, y=0.85cm]
+    %% Fold 1: train 0-60, test 60-67
+    \fill[blue!25] (0,2) rectangle (60,2.7);
+    \fill[red!40]  (60,2) rectangle (67,2.7);
+    \node[font=\tiny] at (30,  2.35) {Train (60 ngày)};
+    \node[font=\tiny, white] at (63.5, 2.35) {H7};
+
+    %% Fold 2: train 0-67, test 67-74
+    \fill[blue!25] (0,1) rectangle (67,1.7);
+    \fill[red!40]  (67,1) rectangle (74,1.7);
+    \node[font=\tiny] at (33.5, 1.35) {Train (67 ngày)};
+    \node[font=\tiny, white] at (70.5, 1.35) {H7};
+
+    %% Fold 3: train 0-74, test 74-81
+    \fill[blue!25] (0,0) rectangle (74,0.7);
+    \fill[red!40]  (74,0) rectangle (81,0.7);
+    \node[font=\tiny] at (37,   0.35) {Train (74 ngày)};
+    \node[font=\tiny, white] at (77.5, 0.35) {H7};
+
+    %% Trục thời gian
+    \draw[->] (-2,-0.3) -- (93,-0.3) node[right, font=\small]{Ngày};
+    \foreach \d in {0,14,28,42,56,70,84}
+        \draw (\d,-0.25)--(\d,-0.35) node[below,font=\tiny]{\d};
+
+    %% Nhãn fold
+    \node[left, font=\small] at (-2,2.35) {F1};
+    \node[left, font=\small] at (-2,1.35) {F2};
+    \node[left, font=\small] at (-2,0.35) {F3};
+
+    %% Chú thích màu
+    \fill[blue!25] (50,-0.9) rectangle (56,-0.5);
+    \node[right, font=\tiny] at (56,-0.7) {Train};
+    \fill[red!40]  (65,-0.9) rectangle (71,-0.5);
+    \node[right, font=\tiny] at (71,-0.7) {Test (H=7)};
+\end{tikzpicture}
+\caption{Walk-Forward Validation: train mở rộng, test cuốn chiều 7 ngày}
+\end{figure}
+
+\begin{lstlisting}[caption=Walk-Forward Validation]
+import numpy as np
+
+def walk_forward_backtest(series_df, model_fn, n_lookback=14,
+                          horizon=7, step=7):
+    """
+    series_df: DataFrame [dt, sale_amount, features...]
+    model_fn : callable(train_df) -> predict_fn
+    """
+    results = []
+    T = len(series_df)
+    start = n_lookback
+
+    while start + horizon <= T:
+        train = series_df.iloc[:start]
+        test  = series_df.iloc[start : start + horizon]
+
+        predict = model_fn(train)
+        y_hat   = predict(test)
+        y_true  = test['sale_amount'].values
+
+        wape = np.sum(np.abs(y_hat - y_true)) / (np.sum(y_true) + 1e-8)
+        wpe  = np.sum(y_hat - y_true)          / (np.sum(y_true) + 1e-8)
+
+        results.append({'fold_start': start, 'WAPE': wape, 'WPE': wpe})
+        start += step
+
+    return pd.DataFrame(results)
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{backtest_outputs/walk_forward_wape.png}
+    \caption{WAPE theo từng fold --- Walk-Forward Validation cho CaLSTM vs LSTM vs DLinear}
+\end{figure}
+
+\subsection{Inventory Simulation (Business Backtest)}
+
+Mô phỏng bài toán đặt hàng theo ngày dựa trên dự báo. Với dự báo $\hat{y}_{t+1:t+7}$, lượng đặt hàng:
+\[
+Q_t = \lceil \hat{y}_t \cdot (1 + \alpha) \rceil
+\]
+với $\alpha$ là \textbf{safety margin} (hệ số an toàn tồn kho).
+
+\begin{table}[H]
+\centering
+\caption{Hai chiến lược backtest tồn kho}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Chiến lược} & \textbf{Safety Margin $\alpha$} & \textbf{Mục tiêu} \\
+\midrule
+Chiến lược 1 (Thận trọng) & $\alpha = 0.20$ & Giảm stockout, chấp nhận overstock \\
+Chiến lược 2 (Tích cực)   & $\alpha = 0.00$ & Đặt vừa đủ, giảm lãng phí \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{lstlisting}[caption=Inventory Simulation Backtest]
+def inventory_backtest(y_true, y_pred, alpha=0.2,
+                       cost_under=2.0, cost_over=0.5):
+    """
+    y_true, y_pred : array (T,)  -- demand thực và dự báo mỗi ngày
+    cost_under     : chi phí mỗi đơn vị thiếu (stockout penalty)
+    cost_over      : chi phí mỗi đơn vị thừa  (holding cost)
+    """
+    Q = np.ceil(y_pred * (1 + alpha))     # lượng đặt hàng
+
+    shortfall = np.maximum(y_true - Q, 0) # thiếu: demand > inventory
+    surplus   = np.maximum(Q - y_true, 0) # thừa : inventory > demand
+
+    stockout_rate = np.mean(y_true > Q)
+    fill_rate     = np.sum(np.minimum(y_true, Q)) / (np.sum(y_true) + 1e-8)
+    total_cost    = cost_under * shortfall.sum() + cost_over * surplus.sum()
+
+    return {
+        'stockout_rate' : stockout_rate,
+        'fill_rate'     : fill_rate,
+        'overstock_rate': np.mean(Q > y_true),
+        'total_cost'    : total_cost,
+        'shortfall_sum' : shortfall.sum(),
+        'surplus_sum'   : surplus.sum()
+    }
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\caption{Kết quả Inventory Simulation Backtest --- Chiến lược 1 ($\alpha=0.20$)}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Mô hình dự báo} & \textbf{Stockout Rate} & \textbf{Fill Rate} & \textbf{Overstock Rate} & \textbf{Total Cost} \\
+\midrule
+Naive Persistence      & --- & --- & --- & --- \\
+DLinear (paper base)   & --- & --- & --- & --- \\
+LSTM                   & --- & --- & --- & --- \\
+\textbf{CaLSTM}        & \textbf{---} & \textbf{---} & \textbf{---} & \textbf{---} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Kết quả Inventory Simulation Backtest --- Chiến lược 2 ($\alpha=0.00$)}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Mô hình dự báo} & \textbf{Stockout Rate} & \textbf{Fill Rate} & \textbf{Overstock Rate} & \textbf{Total Cost} \\
+\midrule
+Naive Persistence      & --- & --- & --- & --- \\
+DLinear (paper base)   & --- & --- & --- & --- \\
+LSTM                   & --- & --- & --- & --- \\
+\textbf{CaLSTM}        & \textbf{---} & \textbf{---} & \textbf{---} & \textbf{---} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{backtest_outputs/inventory_sim.png}
+    \caption{Mô phỏng tồn kho: so sánh stockout rate và fill rate giữa các mô hình}
+\end{figure}
+
+\textbf{Nhận xét kỳ vọng:}
+\begin{itemize}
+    \item \textbf{Chiến lược 1} (thận trọng): CaLSTM có stockout rate thấp nhất vì WPE $\approx 0$ không underestimate.
+    \item \textbf{Chiến lược 2} (tích cực): Sự khác biệt rõ hơn giữa CaLSTM và LSTM --- LSTM bị censoring kéo về underestimate, dẫn đến stockout cao hơn khi không có buffer.
+    \item \textbf{Trực quan hóa vòng lặp:} Raw Sales $\to$ underestimate $\to$ stockout cao $\to$ lại underestimate. CaLSTM phá vòng lặp này.
+\end{itemize}
+
+\newpage
+
+%% ============================================================
+%%  CHƯƠNG 5 — ỨNG DỤNG AI AGENT / DASHBOARD
+%%  Người thực hiện: Nam Khánh
+%% ============================================================
+\chapter{Ứng Dụng: Hệ Thống Dự Báo Tồn Kho}
+\ownerNK
+
+\section{Kiến trúc Hệ thống}
+
+[Nam Khánh viết: sơ đồ kiến trúc tổng thể, các thành phần API (FastAPI/Flask), giao diện (Streamlit/Dash)]
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, rounded corners, text width=2cm,
+                align=center, minimum height=1cm, font=\small},
+    arrow/.style={->, thick, >=stealth}
+]
+    %% Dùng tọa độ tuyệt đối, mỗi node cách nhau 3cm (center-to-center = 3cm, box width = 2cm → gap 1cm)
+    \node[box, fill=blue!15]   (data)  at (0,  2) {Dữ liệu\\FreshRetail};
+    \node[box, fill=green!15]  (proc)  at (3,  2) {Tiền xử lý\\Features};
+    \node[box, fill=orange!15] (model) at (6,  2) {LSTM /\\CaLSTM};
+    \node[box, fill=red!15]    (api)   at (9,  2) {FastAPI\\Endpoint};
+    \node[box, fill=purple!15] (ui)    at (9,  0) {Streamlit\\Dashboard};
+
+    \draw[arrow] (data)  -- (proc);
+    \draw[arrow] (proc)  -- (model);
+    \draw[arrow] (model) -- (api);
+    \draw[arrow] (api)   -- (ui);
+\end{tikzpicture}
+\caption{Kiến trúc hệ thống dự báo tồn kho}
+\end{figure}
+
+\section{Giao diện API}
+
+[Nam Khánh viết: mô tả các endpoint, ví dụ request/response JSON]
+
+\begin{lstlisting}[caption=API endpoint dự báo nhu cầu, language=Python]
+# POST /predict
+# Body: {"store_id": 101, "product_id": 42, "horizon_days": 7}
+# Response: {"forecast": [1.2, 1.5, 0.9, 1.1, 1.3, 1.4, 1.0],
+#            "stockout_risk": [0.1, 0.2, 0.05, ...]}
+\end{lstlisting}
+
+\section{Demo và Kết quả}
+
+[Nam Khánh: ảnh chụp màn hình dashboard, biểu đồ dự báo vs thực tế, cảnh báo stockout]
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{app_outputs/dashboard_screenshot.png}
+    \caption{Giao diện Dashboard dự báo nhu cầu và cảnh báo tồn kho}
+\end{figure}
+
+\section{Đánh giá Ứng dụng}
+
+[Nam Khánh: nhận xét về tính khả dụng, tốc độ phản hồi, điểm cải thiện]
+
+\newpage
+
+%% ============================================================
+%%  CHƯƠNG 6 — KẾT LUẬN VÀ KHUYẾN NGHỊ
+%%  Người thực hiện: Thanh Tài
+%% ============================================================
+\chapter{Kết Luận và Khuyến Nghị}
+\ownerTT
+
+\section{Kết luận}
+
+Nghiên cứu đã thực hiện được:
+
+\begin{enumerate}
+    \item \textbf{Phân tích toàn diện} tập dữ liệu FreshRetailNet-50K: xác định mùa vụ, tỉ lệ censoring, đặc trưng có ảnh hưởng lớn nhất đến doanh số.
+    \item \textbf{Xây dựng và so sánh} 5 mô hình từ SARIMA đến LSTM, với hai chiến lược xử lý censored demand.
+    \item \textbf{Kết luận chính:} [điền sau khi có kết quả thực nghiệm]
+    \item \textbf{Ứng dụng demo} trực quan hóa dự báo và cảnh báo nguy cơ hết hàng.
+\end{enumerate}
+
+\section{Khuyến nghị}
+
+\begin{itemize}
+    \item \textbf{Mở rộng mô hình censoring:} Áp dụng Tobit regression hoặc Survival Analysis để ước lượng nhu cầu tiềm ẩn chính xác hơn.
+    \item \textbf{Dự báo phân cấp (Hierarchical Forecasting):} Dự báo theo city → store → product giúp khai thác thông tin liên kết giữa cấp độ.
+    \item \textbf{Online learning:} Cập nhật mô hình liên tục khi có dữ liệu mới, thay vì retrain từ đầu.
+    \item \textbf{Tối ưu tồn kho end-to-end:} Kết hợp dự báo nhu cầu với bài toán đặt hàng tối ưu (Newsvendor Problem) để giảm chi phí hết hàng và lãng phí.
+\end{itemize}
+
+%% ── Tài liệu tham khảo ──────────────────────────────────────
+\chapter*{Tài Liệu Tham Khảo}
+\addcontentsline{toc}{chapter}{Tài Liệu Tham Khảo}
+\thispagestyle{fancy}
+
+\begin{enumerate}[leftmargin=*, label={[\arabic*]}]
+    \item Wang, Y., Gu, J., Long, L., Li, X., Shen, L., Fu, Z., Zhou, X., \& Jiang, X. (2025). \textit{FreshRetailNet-50K: A Stockout-Annotated Censored Demand Dataset for Latent Demand Recovery and Forecasting in Fresh Retail}. arXiv:2505.16319.
+
+    \item Hochreiter, S., \& Schmidhuber, J. (1997). Long Short-Term Memory. \textit{Neural Computation}, 9(8), 1735--1780.
+
+    \item Cho, K., van Merrienboer, B., Gulcehre, C., Bahdanau, D., Bougares, F., Schwenk, H., \& Bengio, Y. (2014). Learning Phrase Representations using RNN Encoder-Decoder. \textit{EMNLP}.
+
+    \item Box, G.E.P., Jenkins, G.M., Reinsel, G.C., \& Ljung, G.M. (2015). \textit{Time Series Analysis: Forecasting and Control} (5th ed.). Wiley.
+
+    \item Breiman, L. (2001). Random Forests. \textit{Machine Learning}, 45, 5--32.
+
+    \item Tobin, J. (1958). Estimation of relationships for limited dependent variables. \textit{Econometrica}, 26(1), 24--36.
+
+    \item [Thêm các tài liệu của từng thành viên tùy phần mình viết]
+\end{enumerate}
+
+%% ── Phụ lục ────────────────────────────────────────────────
+\appendix
+
+\chapter{Kết quả EDA Chi tiết}
+\ownerTT
+
+[Thanh Tài: các biểu đồ EDA đầy đủ --- boxplot theo category, heatmap correlation, seasonal decomposition]
+
+\chapter{Siêu tham số Mô hình}
+\ownerTT
+
+\begin{table}[H]
+\centering
+\caption{Siêu tham số các mô hình}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Tham số} & \textbf{RF} & \textbf{RNN} & \textbf{LSTM} & \textbf{CaLSTM} \\
+\midrule
+n\_steps (look-back) & ---  & 14   & 14    & 14   \\
+n\_features          & 12   & 8    & 10    & 10   \\
+Hidden units         & ---  & 64   & 128   & 128  \\
+n\_layers            & ---  & 1    & 2     & 2    \\
+n\_estimators        & 200  & ---  & ---   & ---  \\
+Dropout              & ---  & 0.2  & 0.3   & 0.3  \\
+Epochs               & ---  & 100  & 100   & 100  \\
+Batch size           & ---  & 64   & 64    & 64   \\
+Optimizer            & ---  & Adam & Adam  & Adam \\
+Learning rate        & ---  & 1e-3 & 1e-3  & 1e-3 \\
+Loss function        & MSE  & MSE  & MSE   & Censoring-Aware \\
+Covariate            & Có   & Có   & Có    & Có   \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\chapter{Hướng dẫn Chạy Code}
+\ownerTT
+
+\begin{lstlisting}[caption=Cài đặt môi trường, language=bash]
+# Tạo virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+
+# Cài dependencies
+pip install pandas pyarrow tensorflow scikit-learn statsmodels
+pip install matplotlib seaborn streamlit fastapi uvicorn
+
+# Chạy EDA
+python A.M/frn_eda.py
+
+# Chạy training
+python A.M/frn_train.py --model lstm --impute True
+
+# Chạy dashboard
+streamlit run A.M/app.py
+\end{lstlisting}
+
+\end{document}

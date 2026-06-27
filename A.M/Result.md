@@ -304,3 +304,18 @@ Window-length sweep (LSTM, period=12):
 Loaded 'airline': 144 observations (min=104.0, max=622.0 passengers)
 
 Forecast comparison plot saved: seasonality_outputs\airline_seasonality_forecast.png
+
+
+Dataset: temps (3650 ngày, 0–26.3°C, baseline RMSE = 2.481°C)
+
+Model	Không xử lý seasonality	Có xử lý	Cải thiện
+MLP	2.494	3.010	-20.7% (tệ hơn)
+CNN	3.245	2.843	+12.4% (tốt hơn)
+LSTM	2.218	2.317	-4.5% (tệ hơn)
+Kết luận chính:
+
+LSTM không cần seasonal adjustment — tự học được mùa vụ, RMSE 2.218 là tốt nhất, thậm chí tốt hơn baseline
+CNN được lợi khi tách seasonality ra (+12.4%)
+MLP bị hại khi tách — mô hình đơn giản không tái hợp tốt
+Window sweep cho thấy dù window ngắn (7–90 ngày) so với period 365, LSTM vẫn không cần seasonal adjustment
+Plot so sánh đã lưu tại: A.M\seasonality_outputs\temps_seasonality_forecast.png
