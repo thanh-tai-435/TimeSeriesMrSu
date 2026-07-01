@@ -41,6 +41,25 @@ def _wpe(y_true, y_pred) -> float:
     return float(np.sum(np.asarray(y_pred) - np.asarray(y_true)) / denominator)
 
 
+def _write_model_feature_importance(model, features: list[str], output_stem: str, title: str) -> None:
+    if not hasattr(model, "feature_importances_"):
+        return
+    importance = (
+        pd.DataFrame({"feature": features, "importance": model.feature_importances_})
+        .sort_values("importance", ascending=False)
+        .reset_index(drop=True)
+    )
+    importance.to_csv(TABLES_DIR / f"{output_stem}.csv", index=False)
+    top = importance.head(20).sort_values("importance")
+    plt.figure(figsize=(9, 6))
+    plt.barh(top["feature"], top["importance"], color="#0f766e")
+    plt.title(title)
+    plt.xlabel("Importance")
+    plt.ylabel("Feature")
+    plt.grid(axis="x", alpha=0.25)
+    _save(FIGURES_DIR / f"{output_stem}_top20.png")
+
+
 def load_recovery_frame(features_path: Path = PROCESSED_DATA_DIR / "fresh50k_features.parquet") -> pd.DataFrame:
     """Load only columns required for latent demand recovery."""
     feature_columns = load_feature_columns(TABLES_DIR / "feature_columns.csv")
@@ -133,6 +152,12 @@ def recover_hourly_demand(
     final_model = fit_recovery_model(final_train_pool)
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(final_model, MODELS_DIR / "latent_demand_recovery_lightgbm.pkl")
+    _write_model_feature_importance(
+        final_model,
+        recovery_features,
+        "owner_latent_recovery_feature_importance",
+        "Top 20 Feature Importance - Latent Demand Recovery",
+    )
 
     forward_mask = df["dt"] >= val_start
     df.loc[forward_mask, "imputed_demand"] = np.clip(
@@ -141,11 +166,18 @@ def recover_hourly_demand(
         None,
     ).astype("float32")
 
+    # Use only out-of-fold train-period predictions for calibration. This keeps
+    # the recovered training labels independent of validation/test information.
     calibration_mask = (
-        (df["dt"] >= val_start)
-        & (df["dt"] < test_start)
+        (df["dt"] >= first_block_start)
+        & (df["dt"] < val_start)
         & (df["stockout_flag"] == 0)
     )
+    if int(calibration_mask.sum()) == 0:
+        calibration_mask = (
+            (df["dt"] < val_start)
+            & (df["stockout_flag"] == 0)
+        )
     calibration_actual = float(df.loc[calibration_mask, "sale_amount"].sum())
     calibration_pred = float(df.loc[calibration_mask, "imputed_demand"].sum())
     calibration_factor = calibration_pred / max(calibration_actual, 1e-9)
@@ -160,7 +192,8 @@ def recover_hourly_demand(
         np.maximum(df["imputed_demand"] - df["sale_amount"], 0),
         0,
     ).astype("float32")
-    positive_lost = raw_lost[raw_lost > 0]
+    cap_source_mask = (df["dt"] < val_start).to_numpy() & (raw_lost > 0)
+    positive_lost = raw_lost[cap_source_mask]
     lost_demand_cap = float(np.quantile(positive_lost, 0.90)) if len(positive_lost) else 0.0
     df["lost_demand_raw"] = raw_lost.astype("float32")
     df["lost_demand_recovered"] = np.minimum(raw_lost, lost_demand_cap).astype("float32")
@@ -198,12 +231,14 @@ def recover_hourly_demand(
             ("Recovery method", "expanding-window weekly recovery"),
             ("Imputation calibration factor", float(calibration_factor)),
             ("Lost demand cap quantile", "q90 of calibrated positive lost demand"),
+            ("Lost demand cap source", "train-period calibrated positive lost demand only"),
             ("Lost demand cap value", float(lost_demand_cap)),
             ("Warmup days kept observed", int(warmup_days)),
             ("Recovery block days", int(block_days)),
             ("Recovery blocks", int(len(trained_blocks))),
             ("Final recovery train rows", int(len(final_train_pool))),
             ("Recovery train source", "past non-stockout rows only for train blocks; train-period non-stockout rows for validation/test"),
+            ("Calibration source", "train-period out-of-fold non-stockout rows only"),
             ("Final recovery train end", str(final_train_pool["dt"].max())),
             ("Validation start", str(val_start)),
             ("Test start", str(test_start)),
@@ -307,23 +342,13 @@ def _write_daily_split_summary(train: pd.DataFrame, val: pd.DataFrame, test: pd.
 
 
 def _write_owner_feature_importance(model, features: list[str], model_name: str) -> None:
-    if not hasattr(model, "feature_importances_"):
-        return
     safe_name = model_name.lower().replace(" ", "_").replace("-", "")
-    importance = (
-        pd.DataFrame({"feature": features, "importance": model.feature_importances_})
-        .sort_values("importance", ascending=False)
-        .reset_index(drop=True)
+    _write_model_feature_importance(
+        model,
+        features,
+        f"owner_{safe_name}_feature_importance",
+        f"Top 20 Feature Importance - {model_name}",
     )
-    importance.to_csv(TABLES_DIR / f"owner_{safe_name}_feature_importance.csv", index=False)
-    top = importance.head(20).sort_values("importance")
-    plt.figure(figsize=(9, 6))
-    plt.barh(top["feature"], top["importance"], color="#059669")
-    plt.title(f"Top 20 Feature Importance - {model_name}")
-    plt.xlabel("Importance")
-    plt.ylabel("Feature")
-    plt.grid(axis="x", alpha=0.25)
-    _save(FIGURES_DIR / f"owner_{safe_name}_feature_importance_top20.png")
 
 
 def _write_owner_two_stage_diagnostics(val_predictions: pd.DataFrame, test_predictions: pd.DataFrame) -> None:

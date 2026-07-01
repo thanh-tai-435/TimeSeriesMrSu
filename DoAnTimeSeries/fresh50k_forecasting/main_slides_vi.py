@@ -136,6 +136,31 @@ def build_slides() -> str:
     \end{{block}}
 \end{{frame}}
 
+\begin{{frame}}{{Contribution của đồ án}}
+    \begin{{columns}}[T]
+        \begin{{column}}{{0.50\linewidth}}
+            \textbf{{Đóng góp kỹ thuật}}
+            \begin{{itemize}}
+                \item Framing lại bài toán từ observed sales sang recovered demand.
+                \item Hourly stockout recovery theo expanding window, tránh leakage.
+                \item Calibration + cap q90 + sensitivity để kiểm soát imputation.
+            \end{{itemize}}
+        \end{{column}}
+        \begin{{column}}{{0.48\linewidth}}
+            \textbf{{Đóng góp business}}
+            \begin{{itemize}}
+                \item Ước lượng phần demand bị che bởi stockout.
+                \item Chỉ ra weekly seasonality là baseline vận hành rất mạnh.
+                \item Đề xuất hybrid seasonal-ML cho replenishment forecast.
+            \end{{itemize}}
+        \end{{column}}
+    \end{{columns}}
+    \vspace{{0.2cm}}
+    \begin{{block}}{{Không overclaim}}
+    Đồ án không claim recovered demand là ground truth tuyệt đối; đây là proxy được kiểm soát và kiểm tra bằng validation/sensitivity.
+    \end{{block}}
+\end{{frame}}
+
 \begin{{frame}}{{Dữ liệu và thách thức}}
     \begin{{columns}}[T]
         \begin{{column}}{{0.48\linewidth}}

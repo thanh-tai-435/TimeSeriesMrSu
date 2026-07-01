@@ -1,0 +1,18 @@
+Metric,Value
+Observed sales,482697.09375
+Recovered latent demand,534270.1875
+Recovered lost demand,51572.875
+Recovered lift over observed,0.10684314370155334
+Stockout row rate,0.24652109375
+Recovery method,expanding-window weekly recovery
+Imputation calibration factor,1.1297638401922185
+Lost demand cap quantile,q90 of calibrated positive lost demand
+Lost demand cap value,0.06627678871154785
+Warmup days kept observed,14
+Recovery block days,7
+Recovery blocks,9
+Final recovery train rows,400000
+Recovery train source,past non-stockout rows only for train blocks; train-period non-stockout rows for validation/test
+Final recovery train end,2024-06-10 23:00:00
+Validation start,2024-06-11 00:00:00
+Test start,2024-06-18 00:00:00

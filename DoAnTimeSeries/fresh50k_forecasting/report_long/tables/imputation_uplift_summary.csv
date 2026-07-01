@@ -1,0 +1,10 @@
+Metric,Value
+Observed sales,482697.09375
+Recovered demand,534270.1875
+Recovered lost demand,51572.875
+Recovered lift over observed,0.10684314380129827
+Raw calibrated lost demand before cap,65367.58203125
+Cap retained share of raw lost demand,0.7889671515667319
+Stockout row share,0.24652109375
+Recovered lost demand from stockout rows,51572.88671875
+Mean stockout uplift per stockout row,0.018159959465265274

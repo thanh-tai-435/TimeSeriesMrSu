@@ -1,0 +1,103 @@
+\appendix
+\section{Phụ lục A: Bảng hỗ trợ trực tiếp}
+
+Phụ lục chỉ giữ các bảng hỗ trợ trực tiếp cho contribution chính: recovery không leakage, kiểm soát imputation, diagnostics phụ và khả năng tái lập. Các benchmark observed-sales hourly, ablation cũ, SARIMAX aggregate và các bảng thử nghiệm phụ được giữ trong thư mục \texttt{archive\_auxiliary/} thay vì đưa vào báo cáo chính, để tránh làm loãng câu chuyện.
+
+
+\begin{table}[H]
+\centering
+\caption{Các block expanding-window dùng cho recovery}
+\label{tab:app-recovery-blocks}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+Block start & Block end & Training end & Training rows & Predicted rows \\
+\midrule
+2024-04-11 & 2024-04-18 & 2024-04-10 23:00:00 & 400000 & 840000 \\
+2024-04-18 & 2024-04-25 & 2024-04-17 23:00:00 & 400000 & 840000 \\
+2024-04-25 & 2024-05-02 & 2024-04-24 23:00:00 & 400000 & 840000 \\
+2024-05-02 & 2024-05-09 & 2024-05-01 23:00:00 & 400000 & 840000 \\
+2024-05-09 & 2024-05-16 & 2024-05-08 23:00:00 & 400000 & 840000 \\
+2024-05-16 & 2024-05-23 & 2024-05-15 23:00:00 & 400000 & 840000 \\
+2024-05-23 & 2024-05-30 & 2024-05-22 23:00:00 & 400000 & 840000 \\
+2024-05-30 & 2024-06-06 & 2024-05-29 23:00:00 & 400000 & 840000 \\
+2024-06-06 & 2024-06-11 & 2024-06-05 23:00:00 & 400000 & 600000 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+
+\begin{table}[H]
+\centering
+\caption{Top series theo recovered lift}
+\label{tab:app-series-uplift}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllll}
+\toprule
+series\_id & observed\_sales & recovered\_demand & recovered\_lost\_demand & stockout\_rate & Recovered lift over observed & Recovered share from imputation \\
+\midrule
+0\_554\_90 & 39.3000 & 72.3776 & 33.0776 & 0.7339 & 0.8417 & 0.4570 \\
+0\_597\_41 & 39.8500 & 71.9541 & 32.1041 & 0.6150 & 0.8056 & 0.4462 \\
+3\_724\_188 & 45.3000 & 76.9671 & 31.6671 & 0.7248 & 0.6991 & 0.4114 \\
+4\_356\_90 & 39.0500 & 66.2217 & 27.1717 & 0.6029 & 0.6958 & 0.4103 \\
+11\_533\_129 & 43.7000 & 72.7158 & 29.0158 & 0.7161 & 0.6640 & 0.3990 \\
+6\_493\_129 & 44.2000 & 73.4980 & 29.2980 & 0.7357 & 0.6629 & 0.3986 \\
+0\_173\_90 & 55.3000 & 91.7408 & 36.4408 & 0.6536 & 0.6590 & 0.3972 \\
+5\_6\_757 & 44.5000 & 72.8119 & 28.3119 & 0.7448 & 0.6362 & 0.3888 \\
+12\_228\_129 & 45.7000 & 74.0857 & 28.3857 & 0.6667 & 0.6211 & 0.3831 \\
+3\_835\_333 & 46.7000 & 74.9063 & 28.2063 & 0.6944 & 0.6040 & 0.3766 \\
+6\_369\_757 & 43.9600 & 70.2874 & 26.3274 & 0.5894 & 0.5989 & 0.3746 \\
+0\_78\_129 & 52.3000 & 82.0192 & 29.7192 & 0.6215 & 0.5682 & 0.3623 \\
+12\_603\_129 & 44.2000 & 68.9360 & 24.7360 & 0.6211 & 0.5596 & 0.3588 \\
+0\_185\_129 & 48.9000 & 75.3529 & 26.4529 & 0.5694 & 0.5410 & 0.3511 \\
+0\_850\_90 & 55.7700 & 84.9366 & 29.1666 & 0.5608 & 0.5230 & 0.3434 \\
+12\_230\_822 & 39.2100 & 59.6896 & 20.4796 & 0.5838 & 0.5223 & 0.3431 \\
+3\_809\_129 & 42.0000 & 63.7762 & 21.7762 & 0.5764 & 0.5185 & 0.3414 \\
+1\_123\_73 & 44.5000 & 67.2866 & 22.7866 & 0.5994 & 0.5121 & 0.3387 \\
+3\_766\_44 & 43.2800 & 65.0652 & 21.7852 & 0.5321 & 0.5034 & 0.3348 \\
+12\_390\_757 & 47.5300 & 71.3705 & 23.8405 & 0.6519 & 0.5016 & 0.3340 \\
+3\_857\_188 & 40.1100 & 59.9977 & 19.8877 & 0.4991 & 0.4958 & 0.3315 \\
+12\_313\_41 & 41.2200 & 61.6574 & 20.4374 & 0.4891 & 0.4958 & 0.3315 \\
+3\_110\_315 & 42.0000 & 62.7786 & 20.7786 & 0.5569 & 0.4947 & 0.3310 \\
+0\_190\_41 & 46.3700 & 69.1925 & 22.8225 & 0.4497 & 0.4922 & 0.3298 \\
+0\_243\_26 & 41.3400 & 61.4942 & 20.1542 & 0.6042 & 0.4875 & 0.3277 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+
+\begin{table}[H]
+\centering
+\caption{Diagnostics phụ trên non-overlapping target}
+\label{tab:app-nonoverlap}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllllll}
+\toprule
+Model & Evaluation dates & RMSE & MAE & WAPE & WPE & Ljung-Box p-value & N & Aggregate residual points \\
+\midrule
+Recovered naive x7 & 2024-06-11; 2024-06-18 & 4.6707 & 2.9483 & 0.3389 & 0.0080 & 0.1573 & 10000 & 2 \\
+Recovered seasonal naive 7-day & 2024-06-11; 2024-06-18 & 2.8150 & 1.7140 & 0.1970 & -0.0662 & 0.1573 & 10000 & 2 \\
+Recovered rolling mean 14-day & 2024-06-11; 2024-06-18 & 3.0150 & 1.7821 & 0.2049 & -0.0738 & 0.1573 & 10000 & 2 \\
+Observed-sales forecasting & 2024-06-11; 2024-06-18 & 3.5320 & 2.1044 & 0.2419 & -0.1753 & 0.1573 & 10000 & 2 \\
+Recovered-demand forecasting & 2024-06-11; 2024-06-18 & 3.3906 & 1.7544 & 0.2017 & -0.0716 & 0.1573 & 10000 & 2 \\
+Recovered seasonal-ML hybrid & 2024-06-11; 2024-06-18 & 3.0564 & 1.7001 & 0.1954 & -0.0695 & 0.1573 & 10000 & 2 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+\section{Phụ lục B: Reproducibility}
+
+Pipeline chính có thể chạy bằng:
+
+\begin{verbatim}
+pip install -r requirements.txt
+python main_pipeline.py
+\end{verbatim}
+
+Các output chính nằm trong \texttt{deliverables/} và \texttt{outputs/}. Dữ liệu raw cần đặt trong \texttt{data/raw/}. Random seed được cố định là 42 trong các mô hình LightGBM và các bước sampling.

@@ -12,6 +12,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 
 from .config import FIGURES_DIR, MODELS_DIR, PROCESSED_DATA_DIR, TABLES_DIR
 from .evaluation import evaluate_predictions
@@ -71,6 +72,112 @@ def _plot_daily_uplift(daily: pd.DataFrame) -> None:
     _save(FIGURES_DIR / "imputation_daily_uplift.png")
 
 
+def _write_substitution_and_velocity_diagnostics(recovered: pd.DataFrame, features_path: Path) -> None:
+    schema_cols = pq.read_schema(features_path).names
+    wanted = [
+        "dt",
+        "series_id",
+        "sale_amount",
+        "stockout_flag",
+        "sale_roll_mean_3",
+        "sale_roll_mean_24",
+        "sale_velocity_ratio_3_24",
+        "sale_momentum_3_6",
+        "peer_sales_same_group",
+        "peer_sales_roll_mean_24",
+        "peer_sales_velocity_ratio_3_24",
+        "peer_stockout_rate_same_group",
+    ]
+    cols = [column for column in wanted if column in schema_cols]
+    if not {"dt", "series_id", "stockout_flag"}.issubset(cols):
+        return
+
+    features = pd.read_parquet(features_path, columns=cols)
+    features["dt"] = pd.to_datetime(features["dt"])
+
+    stockout = features[features["stockout_flag"] == 1].copy()
+    non_stockout = features[features["stockout_flag"] == 0].copy()
+    rows = []
+    for label, frame in [("stockout_rows", stockout), ("non_stockout_rows", non_stockout)]:
+        if frame.empty:
+            continue
+        rows.append(
+            {
+                "Segment": label,
+                "Rows": len(frame),
+                "Mean sale velocity ratio 3h/24h": float(frame.get("sale_velocity_ratio_3_24", pd.Series(0)).mean()),
+                "Mean sale momentum 3h-6h": float(frame.get("sale_momentum_3_6", pd.Series(0)).mean()),
+                "Mean peer sales same group": float(frame.get("peer_sales_same_group", pd.Series(0)).mean()),
+                "Mean peer velocity ratio 3h/24h": float(frame.get("peer_sales_velocity_ratio_3_24", pd.Series(0)).mean()),
+                "Mean peer stockout rate": float(frame.get("peer_stockout_rate_same_group", pd.Series(0)).mean()),
+            }
+        )
+    diagnostics = pd.DataFrame(rows)
+    diagnostics.to_csv(TABLES_DIR / "stockout_substitution_velocity_diagnostics.csv", index=False)
+
+    if not diagnostics.empty:
+        plot_df = diagnostics.set_index("Segment")
+        metric_cols = [column for column in plot_df.columns if column != "Rows"]
+        plot_df[metric_cols].T.plot(kind="bar", figsize=(10, 5), color=["#c2410c", "#059669"])
+        plt.title("Stockout vs Non-stockout: Velocity and Peer Signals")
+        plt.xlabel("Signal")
+        plt.ylabel("Mean value")
+        plt.xticks(rotation=25, ha="right")
+        plt.grid(axis="y", alpha=0.25)
+        _save(FIGURES_DIR / "stockout_substitution_velocity_diagnostics.png")
+
+    if {"peer_sales_same_group", "peer_sales_roll_mean_24"}.issubset(features.columns):
+        merged = recovered[["dt", "series_id", "lost_demand_recovered"]].merge(
+            features[["dt", "series_id", "peer_sales_same_group", "peer_sales_roll_mean_24", "stockout_flag"]],
+            on=["dt", "series_id"],
+            how="left",
+        )
+        merged["peer_uplift_vs_24h"] = (
+            merged["peer_sales_same_group"] - merged["peer_sales_roll_mean_24"]
+        ).astype("float32")
+        case = (
+            merged[merged["stockout_flag"] == 1]
+            .groupby("series_id", as_index=False)
+            .agg(
+                stockout_rows=("stockout_flag", "sum"),
+                recovered_lost_demand=("lost_demand_recovered", "sum"),
+                mean_peer_uplift_vs_24h=("peer_uplift_vs_24h", "mean"),
+                mean_peer_sales_same_group=("peer_sales_same_group", "mean"),
+            )
+            .sort_values(["mean_peer_uplift_vs_24h", "recovered_lost_demand"], ascending=False)
+            .head(30)
+        )
+        case.to_csv(TABLES_DIR / "stockout_peer_substitution_cases.csv", index=False)
+
+
+def _read_recovery_metric(metric_name: str, default: float = 1.0) -> float:
+    path = TABLES_DIR / "owner_latent_recovery_summary.csv"
+    if not path.exists():
+        return default
+    summary = pd.read_csv(path)
+    match = summary[summary["Metric"] == metric_name]
+    if match.empty:
+        return default
+    try:
+        return float(match["Value"].iloc[0])
+    except (TypeError, ValueError):
+        return default
+
+
+def _read_recovery_timestamp(metric_name: str) -> pd.Timestamp | None:
+    path = TABLES_DIR / "owner_latent_recovery_summary.csv"
+    if not path.exists():
+        return None
+    summary = pd.read_csv(path)
+    match = summary[summary["Metric"] == metric_name]
+    if match.empty:
+        return None
+    value = pd.to_datetime(match["Value"].iloc[0], errors="coerce")
+    if pd.isna(value):
+        return None
+    return value
+
+
 def run_imputation_quality_checks(
     features_path: Path = PROCESSED_DATA_DIR / "fresh50k_features.parquet",
     recovered_path: Path = PROCESSED_DATA_DIR / "fresh50k_recovered_hourly.parquet",
@@ -79,6 +186,7 @@ def run_imputation_quality_checks(
     """Check whether imputation is accurate and whether it over-drives total demand."""
     recovered = pd.read_parquet(recovered_path)
     recovered["dt"] = pd.to_datetime(recovered["dt"])
+    _write_substitution_and_velocity_diagnostics(recovered, features_path)
 
     total_observed = float(recovered["sale_amount"].sum())
     total_recovered = float(recovered["recovered_demand"].sum())
@@ -142,8 +250,10 @@ def run_imputation_quality_checks(
     df["dt"] = pd.to_datetime(df["dt"])
     validation = _sample_non_stockout_validation(df)
     model = joblib.load(recovery_model_path)
+    calibration_factor = max(_read_recovery_metric("Imputation calibration factor", 1.0), 1.0)
     validation_pred = validation[["dt", "series_id", "sale_amount"]].copy()
-    validation_pred["imputed_demand"] = np.clip(model.predict(validation[recovery_features]), 0, None).astype("float32")
+    raw_prediction = np.clip(model.predict(validation[recovery_features]), 0, None)
+    validation_pred["imputed_demand"] = np.clip(raw_prediction / calibration_factor, 0, None).astype("float32")
     validation_pred["error"] = validation_pred["sale_amount"] - validation_pred["imputed_demand"]
     validation_pred.to_csv(TABLES_DIR / "imputation_pseudo_stockout_validation_predictions.csv", index=False)
 
@@ -198,14 +308,21 @@ def run_imputation_quality_checks(
     caps = [0.5, 0.75, 0.9, 1.0]
     sensitivity_rows = []
     baseline_lost = recovered[raw_lost_col].copy()
-    positive_lost = baseline_lost[baseline_lost > 0]
+    val_start = _read_recovery_timestamp("Validation start")
+    if val_start is not None:
+        cap_source_lost = baseline_lost[(recovered["dt"] < val_start) & (baseline_lost > 0)]
+        cap_source = "train-period positive raw lost demand"
+    else:
+        cap_source_lost = baseline_lost[baseline_lost > 0]
+        cap_source = "all positive raw lost demand"
     for cap in caps:
-        cap_value = float(positive_lost.quantile(cap)) if len(positive_lost) else 0.0
+        cap_value = float(cap_source_lost.quantile(cap)) if len(cap_source_lost) else 0.0
         capped_lost = baseline_lost.clip(upper=cap_value)
         capped_recovered = recovered["sale_amount"] + capped_lost
         sensitivity_rows.append(
             {
                 "Scenario": f"Cap lost-demand at q{int(cap * 100)}",
+                "Cap source": cap_source,
                 "Cap value": cap_value,
                 "Recovered demand": float(capped_recovered.sum()),
                 "Recovered lost demand": float(capped_lost.sum()),

@@ -33,6 +33,10 @@ ROLLING_FEATURES = [
     "sale_roll_std_168",
     "sale_roll_min_24",
     "sale_roll_max_24",
+    "sale_velocity_ratio_3_24",
+    "sale_velocity_ratio_1_24",
+    "sale_momentum_1_3",
+    "sale_momentum_3_6",
 ]
 STOCKOUT_FEATURES = [
     "stockout_lag_1",
@@ -44,6 +48,15 @@ STOCKOUT_FEATURES = [
     "stockout_roll_mean_24",
     "stockout_roll_sum_168",
     "stockout_roll_mean_168",
+    "stockout_start_flag",
+]
+PEER_FEATURES = [
+    "peer_sales_same_group",
+    "peer_stockout_rate_same_group",
+    "peer_sales_lag_1",
+    "peer_sales_roll_mean_3",
+    "peer_sales_roll_mean_24",
+    "peer_sales_velocity_ratio_3_24",
 ]
 OPTIONAL_EXTERNAL_BASE_FEATURES = [
     "discount",
@@ -133,6 +146,14 @@ def add_rolling_features(df: pd.DataFrame) -> pd.DataFrame:
     df["sale_roll_max_24"] = (
         grouped_shifted.rolling(24, min_periods=1).max().reset_index(level=0, drop=True).astype("float32")
     )
+    df["sale_velocity_ratio_3_24"] = (
+        df["sale_roll_mean_3"] / df["sale_roll_mean_24"].replace(0, np.nan)
+    ).replace([np.inf, -np.inf], np.nan).fillna(0).astype("float32")
+    df["sale_velocity_ratio_1_24"] = (
+        df["sale_lag_1"] / df["sale_roll_mean_24"].replace(0, np.nan)
+    ).replace([np.inf, -np.inf], np.nan).fillna(0).astype("float32")
+    df["sale_momentum_1_3"] = (df["sale_lag_1"] - df["sale_lag_3"]).fillna(0).astype("float32")
+    df["sale_momentum_3_6"] = (df["sale_roll_mean_3"] - df["sale_roll_mean_6"]).fillna(0).astype("float32")
     return df
 
 
@@ -160,6 +181,51 @@ def add_stockout_features(df: pd.DataFrame) -> pd.DataFrame:
         df[f"stockout_roll_mean_{window}"] = (
             grouped_shifted.rolling(window, min_periods=1).mean().reset_index(level=0, drop=True).astype("float32")
         )
+    df["stockout_start_flag"] = (
+        (df["stockout_flag"] == 1) & (df["stockout_lag_1"].fillna(0) == 0)
+    ).astype("int8")
+    return df
+
+
+def add_peer_substitution_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add same-store/category peer signals for substitution-aware recovery."""
+    df = df.copy()
+    category_candidates = ["third_category_id", "second_category_id", "first_category_id", "management_group_id"]
+    category_col = next((column for column in category_candidates if column in df.columns), None)
+    if category_col is None or "store_id" not in df.columns:
+        for column in PEER_FEATURES:
+            df[column] = np.float32(0)
+        return df
+
+    group_cols = ["store_id", category_col, "dt"]
+    peer_group = df.groupby(group_cols, sort=False)
+    group_sales = peer_group[TARGET_COL].transform("sum")
+    group_count = peer_group[TARGET_COL].transform("count")
+    group_stockout = peer_group["stockout_flag"].transform("sum") if "stockout_flag" in df.columns else 0
+
+    denominator = (group_count - 1).replace(0, np.nan)
+    df["peer_sales_same_group"] = (group_sales - df[TARGET_COL]).clip(lower=0).astype("float32")
+    if "stockout_flag" in df.columns:
+        df["peer_stockout_rate_same_group"] = (
+            (group_stockout - df["stockout_flag"]) / denominator
+        ).replace([np.inf, -np.inf], np.nan).fillna(0).astype("float32")
+    else:
+        df["peer_stockout_rate_same_group"] = np.float32(0)
+
+    grouped_peer = df.groupby(SERIES_COL, sort=False)["peer_sales_same_group"]
+    df["peer_sales_lag_1"] = grouped_peer.shift(1).astype("float32")
+    shifted_peer = grouped_peer.shift(1)
+    grouped_shifted_peer = shifted_peer.groupby(df[SERIES_COL], sort=False)
+    for window in [3, 24]:
+        df[f"peer_sales_roll_mean_{window}"] = (
+            grouped_shifted_peer.rolling(window, min_periods=1)
+            .mean()
+            .reset_index(level=0, drop=True)
+            .astype("float32")
+        )
+    df["peer_sales_velocity_ratio_3_24"] = (
+        df["peer_sales_roll_mean_3"] / df["peer_sales_roll_mean_24"].replace(0, np.nan)
+    ).replace([np.inf, -np.inf], np.nan).fillna(0).astype("float32")
     return df
 
 
@@ -209,6 +275,7 @@ def build_feature_columns(df: pd.DataFrame) -> list[str]:
         + ROLLING_FEATURES
         + ["stockout_flag", "stockout_rate"]
         + STOCKOUT_FEATURES
+        + PEER_FEATURES
         + OPTIONAL_EXTERNAL_BASE_FEATURES
         + EXTERNAL_DERIVED_FEATURES
     )
@@ -246,6 +313,7 @@ def run_feature_engineering(
     df = add_lag_features(df)
     df = add_rolling_features(df)
     df = add_stockout_features(df)
+    df = add_peer_substitution_features(df)
     df = add_external_features(df)
     df = add_targets(df)
 

@@ -1,0 +1,16 @@
+feature,importance
+stockout_rate,986
+recovered_daily_lag_28,969
+recovered_daily_lag_1,820
+recovered_daily_lag_14,814
+recovered_daily_lag_7,794
+recovered_daily_lag_2,699
+recovered_daily_roll_mean_28,671
+recovered_daily_roll_sum_28,585
+day_of_week,518
+recovered_daily_roll_mean_7,490
+month,410
+recovered_daily_roll_mean_14,392
+recovered_daily_roll_sum_14,329
+recovered_daily_roll_sum_7,289
+is_weekend,23

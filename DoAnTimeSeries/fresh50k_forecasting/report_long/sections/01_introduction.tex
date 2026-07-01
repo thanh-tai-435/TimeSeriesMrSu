@@ -1,0 +1,49 @@
+\section{Giới thiệu và động lực kinh doanh}
+
+Bài toán trong đồ án này không chỉ là dự báo doanh số bán được trong tương lai. Trong bán lẻ, doanh số quan sát được có thể bị giới hạn bởi tồn kho: khi một sản phẩm hết hàng, số lượng bán được thấp không phản ánh đầy đủ nhu cầu thật. Nếu doanh nghiệp dùng trực tiếp doanh số quan sát được để dự báo, hệ thống có thể học nhầm rằng nhu cầu thấp, từ đó nhập hàng ít hơn, tiếp tục gây stockout trong các kỳ sau. Đây là vòng lặp vận hành quan trọng:
+
+\begin{center}
+\texttt{stockout -> observed sales thấp -> forecast thấp -> nhập ít -> tiếp tục stockout}
+\end{center}
+
+Vì vậy, câu hỏi nghiên cứu của đồ án được đặt lại theo hướng gần với nghiệp vụ hơn: làm thế nào để dự báo nhu cầu bán lẻ khi dữ liệu doanh số bị kiểm duyệt bởi trạng thái hết hàng? Thay vì chỉ dự báo \textit{observed sales}, báo cáo này xây dựng pipeline dự báo \textit{recovered demand}, tức nhu cầu được hiệu chỉnh sau khi xét đến stockout.
+
+\subsection{Câu hỏi nghiên cứu}
+
+Báo cáo tập trung vào bốn câu hỏi chính. Thứ nhất, dữ liệu FreshRetailNet-50K có các pattern thời gian nào quan trọng cho dự báo, đặc biệt là seasonality theo giờ, theo ngày và theo tuần? Thứ hai, stockout làm observed sales bị kiểm duyệt ở mức độ nào và có cần latent demand recovery hay không? Thứ ba, recovery demand có làm tổng nhu cầu tăng quá mức hay không, và làm sao kiểm soát rủi ro imputation? Thứ tư, sau khi recover demand, mô hình forecasting nào phù hợp nhất cho bài toán daily next-7-day demand?
+
+\subsection{Đóng góp chính của đồ án}
+
+Đóng góp của đồ án được hiểu theo nghĩa thực nghiệm và ứng dụng, không phải đề xuất một thuật toán deep learning hoàn toàn mới. Điểm mới nằm ở cách framing bài toán, cách xử lý stockout và cách biến kết quả forecast thành insight vận hành.
+
+\begin{table}[H]
+\centering
+\caption{Tóm tắt contribution của đồ án}
+\label{tab:contribution-summary}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+Nhóm đóng góp & Nội dung thực hiện & Ý nghĩa \\
+\midrule
+Problem framing & Chuyển từ forecast observed sales sang forecast recovered demand & Gần hơn với quyết định replenishment \\
+Data treatment & Recover latent demand ở cấp hourly rồi aggregate lên daily & Giữ đúng nơi stockout xuất hiện nhưng trả forecast ở cấp vận hành \\
+Leakage control & Expanding-window recovery theo block tuần & Không dùng ngày tương lai để recover quá khứ \\
+Imputation control & Calibration, cap q90, pseudo-stockout validation, sensitivity & Tránh để imputation làm phình tổng demand quá mức \\
+Modeling insight & So sánh observed-sales, recovered-demand, seasonal naive và hybrid & Chứng minh seasonality tuần là baseline rất mạnh \\
+Business insight & Đo mức demand bị che bởi stockout và tác động lên forecast & Hỗ trợ nhận diện SKU/store có rủi ro thiếu hàng \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+Nói ngắn gọn, contribution chính không phải là ``dùng LightGBM'' hay ``vẽ thêm nhiều biểu đồ''. Contribution chính là xây dựng một quy trình forecast có xét cơ chế stockout-censoring: observed sales bị kiểm duyệt, demand được recover có kiểm soát, sau đó forecast được đánh giá trên demand proxy phù hợp hơn cho vận hành.
+
+\subsection{Phạm vi và điều không claim}
+
+Đồ án không claim rằng recovered demand là ground truth tuyệt đối. Đây là proxy được ước lượng từ dữ liệu non-stockout và được kiểm soát bằng các kiểm tra aggregate/sensitivity. Đồ án cũng không claim đánh bại mọi mô hình deep learning hiện đại. Mục tiêu là một pipeline chặt chẽ, tái lập được, có benchmark rõ ràng và diễn giải được về mặt business.
+
+\subsection{Kết quả chính ở mức tổng quan}
+
+Sample thí nghiệm dùng 0.1 theo cấp \texttt{series\_id}, gồm 11640000 quan sát hourly và 5000 chuỗi, từ 2024-03-28 00:00:00 đến 2024-07-02 23:00:00. Tỷ lệ stockout row khoảng 24.65\%. Sau recovery, recovered demand tăng khoảng 10.68\% so với observed sales, cho thấy observed sales có khả năng đang understated demand do hết hàng.
+
+Khi đánh giá trên recovered latent demand proxy, observed-sales LightGBM đạt WAPE 24.42\%; recovered-demand LightGBM giảm xuống 20.28\%. Seasonal naive 7-day đạt 19.85\%, cho thấy seasonality tuần rất mạnh. Mô hình kết luận cuối là Recovered seasonal-ML hybrid, đạt WAPE 19.67\%.
