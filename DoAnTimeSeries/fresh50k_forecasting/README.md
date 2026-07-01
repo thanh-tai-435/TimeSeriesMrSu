@@ -1,37 +1,37 @@
-# FreshRetailNet-50K Two-Stage Demand Forecasting
+# FreshRetailNet-50K Stockout-Aware Demand Forecasting
 
-Project này tập trung vào một câu chuyện chính:
+Project này giữ một hướng tiếp cận duy nhất, dễ bảo vệ:
 
-> Observed sales trong bán lẻ có thể bị thấp giả tạo khi stockout. Vì vậy, ta recover latent demand ở cấp hourly trước, aggregate lên daily, rồi forecast tổng nhu cầu 7 ngày tiếp theo.
+> Doanh số quan sát trong bán lẻ có thể bị thấp giả tạo khi sản phẩm hết hàng. Vì vậy, pipeline khôi phục nhu cầu ẩn ở cấp giờ, tổng hợp lên cấp ngày, rồi dự báo tổng nhu cầu 7 ngày tiếp theo.
 
-## Main Story
+## Câu chuyện chính
 
-1. Load dữ liệu FreshRetailNet-50K và lấy sample 10% theo `series_id`.
-2. Bung dữ liệu ngày thành hourly bằng `hours_sale` và `hours_stock_status`.
-3. Recover latent demand trong các giờ stockout bằng expanding-window LightGBM, không dùng dữ liệu tương lai.
-4. Kiểm soát imputation bằng calibration + cap q90 + sensitivity checks.
-5. Aggregate hourly recovered demand thành daily demand.
-6. Forecast tổng demand 7 ngày tiếp theo.
-7. So sánh daily baselines, observed-sales LightGBM, recovered-demand LightGBM và hybrid seasonal-ML.
+1. Load dữ liệu FreshRetailNet-50K và lấy mẫu 10% theo `series_id`.
+2. Bung dữ liệu từ ngày sang giờ bằng `hours_sale` và `hours_stock_status`.
+3. Nhận diện stockout để thấy observed sales là dữ liệu bị kiểm duyệt.
+4. Khôi phục latent demand bằng expanding-window LightGBM, chỉ dùng dữ liệu quá khứ để tránh leakage.
+5. Calibration và capping để imputation không làm tổng demand tăng quá mức.
+6. Tổng hợp recovered hourly demand lên daily demand.
+7. Dự báo tổng demand 7 ngày tiếp theo bằng Seasonal Naive 7-day, LightGBM recovered-demand và Hybrid Seasonal-ML.
+8. Đánh giá bằng WAPE, bias/WPE, residual diagnostics, interval coverage và kiểm tra pseudo-stockout.
 
-## Key Result
+## Kết quả chính
 
-Trên recovered latent demand proxy:
+Trên target `Recovered latent demand proxy`:
 
-| Model | WAPE |
-|---|---:|
-| Observed-sales LightGBM | 24.42% |
-| Recovered-demand LightGBM | 20.28% |
-| Seasonal naive 7-day | 19.85% |
-| Seasonal-ML hybrid | 19.67% |
+| Model | WAPE | Ghi chú |
+|---|---:|---|
+| Observed-sales forecasting | 24.92% | Bị thấp do stockout bias |
+| Recovered-demand LightGBM | 20.19% | ML học trên demand đã recover |
+| Seasonal naive 7-day | 19.85% | Baseline rất mạnh vì chu kỳ tuần rõ |
+| Seasonal-ML hybrid | 19.62% | Tốt nhất theo WAPE, kết hợp weekly pattern và ML |
 
-Kết luận chính: seasonal pattern theo tuần rất mạnh, nên mô hình cuối dùng hybrid giữa seasonal naive 7-day và LightGBM trên recovered demand. Trọng số hybrid được chọn trên validation set, không chọn bằng test.
+Kết luận nên trình bày: contribution chính không phải là “ML thắng xa baseline”, mà là framing đúng vấn đề stockout, recovery không leakage, kiểm soát imputation, rồi so sánh công bằng với baseline mùa vụ mạnh.
 
-## Minimal Run
+## Chạy lại pipeline
 
 ```bash
 pip install -r requirements.txt
-
 python main_pipeline.py
 ```
 
@@ -41,78 +41,59 @@ Hoặc chạy từng bước:
 python main_eda.py --sample_frac 0.1 --frequency hourly
 python main_features.py --sample_frac 0.1 --frequency hourly
 python main_split.py --val_days 7 --test_days 14
-python main_process_diagram.py
 python main_owner_approach.py
 python main_imputation_quality.py
 python main_spectrum.py
-python main_report_vi.py
-python main_report_long_vi.py
-python main_slides_vi.py
 ```
 
-Compile LaTeX nếu cần:
-
-```bash
-cd outputs/reports
-xelatex -interaction=nonstopmode fresh50k_report_vi.tex
-xelatex -interaction=nonstopmode fresh50k_slides_vi.tex
-```
-
-## Main Deliverables
-
-Các file nên dùng để nộp/bảo vệ nằm trong:
-
-```text
-deliverables/
-  reports/
-  tables/
-  figures/
-```
-
-Quan trọng nhất:
-
-- `deliverables/reports/fresh50k_report_vi.pdf`
-- `deliverables/reports/fresh50k_report_long_vi.pdf`
-- `deliverables/reports/fresh50k_slides_vi.pdf`
-- `deliverables/tables/owner_two_stage_forecasting_comparison.csv`
-- `deliverables/tables/owner_latent_recovery_summary.csv`
-- `deliverables/tables/imputation_cap_sensitivity.csv`
-- `deliverables/tables/imputation_pseudo_stockout_aggregate_validation.csv`
-
-## Project Structure
+## Cấu trúc đã tinh gọn
 
 ```text
 data/
-  raw/          raw train/eval parquet
-  sample/       selected 10% sample
-  processed/    generated feature/recovery tables
+  raw/          dữ liệu parquet gốc
+  sample/       sample 10% theo series_id
+  processed/    feature table và bảng recovery trung gian
 
 src/
   data_loader.py
-  preprocessing.py
   eda.py
+  stationarity.py
   features.py
   split.py
   owner_approach.py
   imputation_quality.py
   spectrum.py
   evaluation.py
+  models.py
 
 outputs/
-  figures/
-  tables/
-  models/
-  reports/
+  figures/      hình phân tích và kết quả mô hình
+  tables/       bảng số liệu dùng để báo cáo/bảo vệ
+  models/       model artifacts
 
-deliverables/   clean files for presentation/report submission
-archive_auxiliary/ old exploratory scripts/notebooks
+deliverables/
+  figures/      bản copy hình quan trọng nếu cần nộp
+  tables/       bản copy bảng quan trọng nếu cần nộp
 ```
 
-## Notes For Defense
+## File kết quả nên dùng khi bảo vệ
+
+- `outputs/tables/data_quality_summary.csv`
+- `outputs/tables/owner_latent_recovery_summary.csv`
+- `outputs/tables/imputation_pseudo_stockout_aggregate_validation.csv`
+- `outputs/tables/imputation_cap_sensitivity.csv`
+- `outputs/tables/owner_two_stage_forecasting_comparison.csv`
+- `outputs/tables/owner_two_stage_diagnostics.csv`
+- `outputs/figures/stockout_rate_over_time.png`
+- `outputs/figures/owner_observed_vs_recovered_demand.png`
+- `outputs/figures/owner_two_stage_forecast_comparison.png`
+- `outputs/figures/owner_two_stage_residual_acf.png`
+
+## Ghi chú khi bảo vệ
 
 - Forecast target chính là `target_next7_recovered_daily`, không phải raw observed sales.
-- Recovery trong train dùng expanding window theo block tuần, tránh lấy ngày sau để recover ngày trước.
-- Validation/test recovery dùng model fit từ non-stockout rows trong train period.
-- Imputation không được xem là ground truth tuyệt đối; nó là proxy được kiểm soát bằng calibration, cap và sensitivity.
-- Row-level hourly imputation rất nhiễu, nên báo cáo bổ sung aggregate validation.
-- Residual rolling 7-day target vẫn có autocorrelation nhẹ vì các target liên tiếp overlap mạnh.
+- Recovery trong train dùng expanding window theo block tuần: block hiện tại chỉ được học từ quá khứ.
+- Validation/test được recover bằng model fit từ non-stockout rows trong train period.
+- Imputation không được xem là ground truth tuyệt đối; nó là proxy được kiểm soát bằng calibration, cap và pseudo-stockout validation.
+- Seasonal Naive 7-day phải được giữ làm baseline chính vì dữ liệu có weekly pattern mạnh.
+- Hybrid hợp lý vì nó giữ weekly pattern của Seasonal Naive nhưng thêm khả năng học stockout history, recovery signal, peer/substitution và velocity features.

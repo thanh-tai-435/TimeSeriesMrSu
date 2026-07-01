@@ -1,4 +1,0 @@
-Split,Origin start,Origin end,Target window start,Target window end,Rows,Series
-Train,2024-03-28,2024-06-03,2024-03-29,2024-06-10,340000,5000
-Validation,2024-06-04,2024-06-10,2024-06-05,2024-06-17,35000,5000
-Test,2024-06-11,2024-06-24,2024-06-12,2024-07-01,70000,5000

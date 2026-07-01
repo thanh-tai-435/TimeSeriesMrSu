@@ -1,4 +1,4 @@
-"""Run the lean Fresh50K two-stage pipeline end to end."""
+"""Run the Fresh50K stockout-aware forecasting pipeline end to end."""
 
 from __future__ import annotations
 
@@ -10,13 +10,9 @@ COMMANDS = [
     ["main_eda.py", "--sample_frac", "0.1", "--frequency", "hourly"],
     ["main_features.py", "--sample_frac", "0.1", "--frequency", "hourly"],
     ["main_split.py", "--val_days", "7", "--test_days", "14"],
-    ["main_process_diagram.py"],
     ["main_owner_approach.py"],
     ["main_imputation_quality.py"],
     ["main_spectrum.py"],
-    ["main_report_vi.py"],
-    ["main_report_long_vi.py"],
-    ["main_slides_vi.py"],
 ]
 
 

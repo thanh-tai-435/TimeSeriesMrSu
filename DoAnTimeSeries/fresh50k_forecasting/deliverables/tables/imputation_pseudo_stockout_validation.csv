@@ -1,9 +1,0 @@
-Metric,Value
-Validation rows,300000
-Pseudo-stockout source,non-stockout rows from validation period
-RMSE,0.10030610859394073
-MAE,0.05774029344320297
-WAPE,1.0391554832458496
-sMAPE,1.6277295807119518
-Mean prediction / actual ratio,1.1315665245056152
-Mean error actual-minus-imputed,-0.007310444954782724

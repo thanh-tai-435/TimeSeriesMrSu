@@ -743,35 +743,8 @@ def run_owner_daily_forecasting(daily: pd.DataFrame | None = None, max_train_row
     return result
 
 
-def write_owner_method_note() -> Path:
-    """Write a note describing how this project follows the paper/repo framing."""
-    output = TABLES_DIR.parent / "reports" / "owner_approach_note.md"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    text = """# Owner-Aligned Approach
-
-The FreshRetailNet-50K paper and baseline repository frame the benchmark as two connected tasks:
-
-1. **Latent Demand Recovery**: reconstruct demand during stockout periods because observed sales are censored.
-2. **Censoring-Robust Demand Forecasting**: train forecasting models using recovered/de-biased demand rather than raw observed sales only.
-
-This project follows that framing with a lightweight, reproducible implementation:
-
-- Hourly stockout annotations identify censored periods.
-- To avoid temporal leakage, recovery inside the training period uses expanding weekly blocks: each block is recovered by a LightGBM model trained only on past non-stockout observations.
-- Validation and test periods are recovered with a final recovery model trained only on training-period non-stockout observations.
-- For stockout rows, raw imputed demand is calibrated on validation non-stockout rows; positive lost demand is capped at q90 before being added back to observed sales.
-- Hourly recovered demand is aggregated to daily demand.
-- A 7-day ahead daily forecasting task compares models trained on raw observed sales versus recovered demand.
-
-This is intentionally simpler than the repository's deep imputation baselines such as TimesNet, SAITS, ImputeFormer, GPVAE, CSDI, and DLinear, but it preserves the central methodological idea: recover censored demand first, then forecast on de-biased demand.
-"""
-    output.write_text(text, encoding="utf-8")
-    return output
-
-
 def run_owner_aligned_pipeline() -> None:
     """Run the paper/repo-aligned two-stage pipeline."""
     recovered = recover_hourly_demand()
     daily = build_daily_forecasting_table(recovered)
     run_owner_daily_forecasting(daily)
-    write_owner_method_note()

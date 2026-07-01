@@ -12,7 +12,6 @@ OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 FIGURES_DIR = OUTPUTS_DIR / "figures"
 TABLES_DIR = OUTPUTS_DIR / "tables"
 MODELS_DIR = OUTPUTS_DIR / "models"
-REPORTS_DIR = OUTPUTS_DIR / "reports"
 
 RANDOM_SEED = 42
 DATETIME_COL = "dt"
@@ -29,6 +28,5 @@ def ensure_directories() -> None:
         FIGURES_DIR,
         TABLES_DIR,
         MODELS_DIR,
-        REPORTS_DIR,
     ]:
         path.mkdir(parents=True, exist_ok=True)

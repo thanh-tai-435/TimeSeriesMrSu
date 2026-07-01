@@ -1,4 +1,0 @@
-series_id,type,total_sales,stockout_rate,n_obs
-4_11_267,high_volume,1896.5,0.60695875,2328
-3_793_550,intermittent,49.7,0.19072165,2328
-5_6_757,stockout_heavy,48.4,0.7371134,2328
