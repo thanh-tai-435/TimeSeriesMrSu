@@ -1,41 +1,73 @@
-# FreshRetailNet-50K Stockout-Aware Demand Forecasting
+# FreshRetailNet-50K: Stockout-Aware Demand Forecasting
 
-Project này giữ một hướng tiếp cận duy nhất, dễ bảo vệ:
+## 1. Tổng Quan Đề Tài
 
-> Doanh số quan sát trong bán lẻ có thể bị thấp giả tạo khi sản phẩm hết hàng. Vì vậy, pipeline khôi phục nhu cầu ẩn ở cấp giờ, tổng hợp lên cấp ngày, rồi dự báo tổng nhu cầu 7 ngày tiếp theo.
+Đề tài nghiên cứu bài toán dự báo nhu cầu bán lẻ trên bộ dữ liệu FreshRetailNet-50K trong bối cảnh dữ liệu doanh số quan sát có thể bị sai lệch bởi hiện tượng hết hàng. Khi một sản phẩm rơi vào trạng thái stockout, doanh số ghi nhận không còn phản ánh đầy đủ nhu cầu thực tế của khách hàng. Vì vậy, nếu mô hình dự báo được huấn luyện trực tiếp trên observed sales, kết quả có nguy cơ đánh giá thấp nhu cầu trong các giai đoạn chịu ảnh hưởng bởi thiếu hàng.
 
-## Câu chuyện chính
+Hướng tiếp cận của đề tài là xây dựng một pipeline hai giai đoạn:
 
-1. Load dữ liệu FreshRetailNet-50K và lấy mẫu 10% theo `series_id`.
-2. Bung dữ liệu từ ngày sang giờ bằng `hours_sale` và `hours_stock_status`.
-3. Nhận diện stockout để thấy observed sales là dữ liệu bị kiểm duyệt.
-4. Khôi phục latent demand bằng expanding-window LightGBM, chỉ dùng dữ liệu quá khứ để tránh leakage.
-5. Calibration và capping để imputation không làm tổng demand tăng quá mức.
-6. Tổng hợp recovered hourly demand lên daily demand.
-7. Dự báo tổng demand 7 ngày tiếp theo bằng Seasonal Naive 7-day, LightGBM recovered-demand và Hybrid Seasonal-ML.
-8. Đánh giá bằng WAPE, bias/WPE, residual diagnostics, interval coverage và kiểm tra pseudo-stockout.
+1. Khôi phục nhu cầu tiềm ẩn trong các khoảng thời gian stockout ở cấp độ giờ.
+2. Tổng hợp nhu cầu đã khôi phục lên cấp độ ngày và dự báo tổng nhu cầu trong 7 ngày tiếp theo.
 
-## Kết quả chính
+## 2. Dữ Liệu Và Phạm Vi Thực Nghiệm
 
-Trên target `Recovered latent demand proxy`:
+Nguồn dữ liệu được sử dụng là FreshRetailNet-50K. Do giới hạn tài nguyên tính toán, thực nghiệm chính sử dụng mẫu 10% theo `series_id`, trong đó mỗi chuỗi thời gian tương ứng với một tổ hợp cửa hàng và sản phẩm.
 
-| Model | WAPE | Ghi chú |
+Pipeline xử lý dữ liệu gồm các bước chính:
+
+- Chuẩn hóa cột thời gian, định danh chuỗi và biến mục tiêu.
+- Bung dữ liệu từ cấp độ ngày sang cấp độ giờ dựa trên `hours_sale` và `hours_stock_status`.
+- Xác định các dòng chịu ảnh hưởng bởi stockout.
+- Tạo đặc trưng thời gian, lag, rolling statistics, stockout history, peer/substitution signal và velocity signal.
+- Chia tập dữ liệu theo trục thời gian thành train, validation và test.
+
+## 3. Phương Pháp Nghiên Cứu
+
+### 3.1. Latent Demand Recovery
+
+Nhu cầu tiềm ẩn được khôi phục ở cấp độ giờ bằng LightGBM. Để tránh rò rỉ thông tin theo thời gian, phần recovery trong tập train sử dụng cơ chế expanding window theo từng block thời gian. Mỗi block chỉ được khôi phục bằng mô hình học từ các quan sát non-stockout trong quá khứ.
+
+Sau khi dự báo nhu cầu cho các dòng stockout, pipeline áp dụng calibration và capping để hạn chế việc imputation làm tổng nhu cầu tăng quá mức. Nhu cầu khôi phục cuối cùng được xác định theo nguyên tắc không thấp hơn doanh số quan sát.
+
+### 3.2. Daily Demand Forecasting
+
+Sau bước recovery, dữ liệu hourly được tổng hợp lên daily demand. Mục tiêu dự báo chính là tổng nhu cầu 7 ngày tiếp theo trên recovered latent demand proxy.
+
+Các mô hình được so sánh gồm:
+
+- Observed-sales forecasting: mô hình học trực tiếp trên doanh số quan sát.
+- Seasonal Naive 7-day: baseline mùa vụ theo chu kỳ tuần.
+- Recovered-demand LightGBM: mô hình học trên nhu cầu đã khôi phục.
+- Seasonal-ML Hybrid: kết hợp Seasonal Naive 7-day và Recovered-demand LightGBM, với trọng số chọn trên validation set.
+
+## 4. Kết Quả Chính
+
+Kết quả trên tập test với mục tiêu `Recovered latent demand proxy`:
+
+| Mô hình | WAPE | Diễn giải |
 |---|---:|---|
-| Observed-sales forecasting | 24.92% | Bị thấp do stockout bias |
-| Recovered-demand LightGBM | 20.19% | ML học trên demand đã recover |
-| Seasonal naive 7-day | 19.85% | Baseline rất mạnh vì chu kỳ tuần rõ |
-| Seasonal-ML hybrid | 19.62% | Tốt nhất theo WAPE, kết hợp weekly pattern và ML |
+| Observed-sales forecasting | 24.92% | Dự báo trực tiếp trên observed sales bị ảnh hưởng bởi stockout bias. |
+| Recovered-demand LightGBM | 20.19% | Mô hình học trên nhu cầu đã khôi phục cải thiện rõ so với observed-sales forecasting. |
+| Seasonal Naive 7-day | 19.85% | Baseline mạnh do dữ liệu có chu kỳ tuần rõ rệt. |
+| Seasonal-ML Hybrid | 19.62% | Mô hình tốt nhất theo WAPE trong thực nghiệm chính. |
 
-Kết luận nên trình bày: contribution chính không phải là “ML thắng xa baseline”, mà là framing đúng vấn đề stockout, recovery không leakage, kiểm soát imputation, rồi so sánh công bằng với baseline mùa vụ mạnh.
+Ngoài đánh giá forecast, đề tài cũng thực hiện các kiểm tra bổ sung cho bước imputation, gồm uplift analysis, pseudo-stockout validation, cap sensitivity analysis và residual diagnostics.
 
-## Chạy lại pipeline
+## 5. Cách Tái Lập Thực Nghiệm
+
+Cài đặt thư viện:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Chạy toàn bộ pipeline:
+
+```bash
 python main_pipeline.py
 ```
 
-Hoặc chạy từng bước:
+Chạy từng bước:
 
 ```bash
 python main_eda.py --sample_frac 0.1 --frequency hourly
@@ -46,37 +78,38 @@ python main_imputation_quality.py
 python main_spectrum.py
 ```
 
-## Cấu trúc đã tinh gọn
+## 6. Cấu Trúc Mã Nguồn
 
 ```text
-data/
-  raw/          dữ liệu parquet gốc
-  sample/       sample 10% theo series_id
-  processed/    feature table và bảng recovery trung gian
+fresh50k_forecasting/
+  data/
+    raw/          dữ liệu gốc
+    sample/       dữ liệu sau khi lấy mẫu theo series_id
+    processed/    dữ liệu trung gian và feature table
 
-src/
-  data_loader.py
-  eda.py
-  stationarity.py
-  features.py
-  split.py
-  owner_approach.py
-  imputation_quality.py
-  spectrum.py
-  evaluation.py
-  models.py
+  src/
+    data_loader.py          load, chuẩn hóa và bung dữ liệu hourly
+    eda.py                  phân tích khám phá dữ liệu
+    stationarity.py         kiểm định tính dừng, ACF và PACF
+    features.py             tạo đặc trưng cho mô hình
+    split.py                chia train/validation/test theo thời gian
+    owner_approach.py       two-stage recovery và daily forecasting
+    imputation_quality.py   đánh giá chất lượng imputation
+    spectrum.py             phân tích phổ tần số
+    evaluation.py           các thước đo đánh giá
+    models.py               tiện ích liên quan tới feature columns
 
-outputs/
-  figures/      hình phân tích và kết quả mô hình
-  tables/       bảng số liệu dùng để báo cáo/bảo vệ
-  models/       model artifacts
+  outputs/
+    figures/                biểu đồ kết quả
+    tables/                 bảng kết quả
+    models/                 mô hình đã huấn luyện
 
-deliverables/
-  figures/      bản copy hình quan trọng nếu cần nộp
-  tables/       bản copy bảng quan trọng nếu cần nộp
+  deliverables/
+    figures/                hình quan trọng để đưa vào báo cáo
+    tables/                 bảng quan trọng để đưa vào báo cáo
 ```
 
-## File kết quả nên dùng khi bảo vệ
+## 7. Các File Kết Quả Quan Trọng
 
 - `outputs/tables/data_quality_summary.csv`
 - `outputs/tables/owner_latent_recovery_summary.csv`
@@ -89,11 +122,8 @@ deliverables/
 - `outputs/figures/owner_two_stage_forecast_comparison.png`
 - `outputs/figures/owner_two_stage_residual_acf.png`
 
-## Ghi chú khi bảo vệ
+## 8. Hạn Chế
 
-- Forecast target chính là `target_next7_recovered_daily`, không phải raw observed sales.
-- Recovery trong train dùng expanding window theo block tuần: block hiện tại chỉ được học từ quá khứ.
-- Validation/test được recover bằng model fit từ non-stockout rows trong train period.
-- Imputation không được xem là ground truth tuyệt đối; nó là proxy được kiểm soát bằng calibration, cap và pseudo-stockout validation.
-- Seasonal Naive 7-day phải được giữ làm baseline chính vì dữ liệu có weekly pattern mạnh.
-- Hybrid hợp lý vì nó giữ weekly pattern của Seasonal Naive nhưng thêm khả năng học stockout history, recovery signal, peer/substitution và velocity features.
+Nhu cầu khôi phục trong đề tài là một proxy được xây dựng từ dữ liệu quan sát và trạng thái stockout, không phải ground truth tuyệt đối của nhu cầu thực tế. Ngoài ra, thực nghiệm chính sử dụng 10% số chuỗi để phù hợp với tài nguyên tính toán, nên kết quả có thể thay đổi khi mở rộng sang toàn bộ dữ liệu.
+
+Các hướng phát triển tiếp theo gồm mở rộng thực nghiệm trên toàn bộ dữ liệu, thử nghiệm các mô hình imputation chuỗi thời gian chuyên sâu hơn, và đánh giá trực tiếp tác động của dự báo lên quyết định nhập hàng.
