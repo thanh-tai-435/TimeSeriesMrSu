@@ -42,16 +42,39 @@ Các mô hình được so sánh gồm:
 
 ## 4. Kết Quả Chính
 
+Phần dự báo sử dụng mục tiêu `next 7-day demand`. Để tránh target window của train,
+validation và test chồng lên nhau, evaluation cuối cùng dùng purged time split với
+horizon 7 ngày và purge gap 7 ngày. Split sau khi xử lý:
+
+- Train origin: `2024-03-28` đến `2024-05-20`, target window kết thúc `2024-05-27`.
+- Validation origin: `2024-05-28` đến `2024-06-03`, target window kết thúc `2024-06-10`.
+- Test origin: `2024-06-11` đến `2024-06-24`, target window kết thúc `2024-07-01`.
+
 Kết quả trên tập test với mục tiêu `Recovered latent demand proxy`:
 
 | Mô hình | WAPE | Diễn giải |
 |---|---:|---|
-| Observed-sales forecasting | 24.92% | Dự báo trực tiếp trên observed sales bị ảnh hưởng bởi stockout bias. |
-| Recovered-demand LightGBM | 20.19% | Mô hình học trên nhu cầu đã khôi phục cải thiện rõ so với observed-sales forecasting. |
+| Observed-sales forecasting | 23.70% | Dự báo trực tiếp trên observed sales vẫn bị ảnh hưởng bởi stockout bias. |
+| Recovered-demand LightGBM | 20.52% | Mô hình học trên nhu cầu đã khôi phục cải thiện rõ so với observed-sales forecasting. |
 | Seasonal Naive 7-day | 19.85% | Baseline mạnh do dữ liệu có chu kỳ tuần rõ rệt. |
-| Seasonal-ML Hybrid | 19.62% | Mô hình tốt nhất theo WAPE trong thực nghiệm chính. |
+| Seasonal-ML Hybrid | 19.56% | Mô hình tốt nhất theo WAPE; mức cải thiện nhỏ cho thấy chu kỳ tuần vẫn là tín hiệu chính. |
 
-Ngoài đánh giá forecast, đề tài cũng thực hiện các kiểm tra bổ sung cho bước imputation, gồm uplift analysis, pseudo-stockout validation, cap sensitivity analysis và residual diagnostics.
+### 4.1. Ablation Study
+
+Để định lượng đóng góp của từng thành phần trong Seasonal-ML Hybrid, mỗi biến thể ablation loại bỏ một thành phần, huấn luyện lại LightGBM với cùng siêu tham số, chọn lại trọng số blend trên validation, và đánh giá test WAPE trên recovered latent demand proxy:
+
+| Thành phần bị loại | WAPE (hybrid) | Chênh lệch so với mô hình đầy đủ |
+|---|---:|---:|
+| Không loại (mô hình đầy đủ) | 19.56% | — |
+| Loại demand recovery (dùng observed sales) | 20.52% | +0.96 điểm |
+| Loại lag features | 19.84% | +0.28 điểm |
+| Loại stockout rate | 19.65% | +0.09 điểm |
+| Loại calendar features | 19.62% | +0.06 điểm |
+| Loại rolling features | 19.62% | +0.05 điểm |
+
+Bước demand recovery là thành phần quan trọng nhất: bỏ nó làm WAPE tăng gần 1 điểm phần trăm, lớn hơn tổng ảnh hưởng của mọi nhóm feature cộng lại. Trong các nhóm feature, lag features đóng góp nhiều nhất; calendar và rolling gần như thay thế được cho nhau vì tín hiệu chu kỳ tuần đã nằm trong thành phần Seasonal Naive của hybrid. Kết quả chi tiết ở `outputs/tables/owner_ablation_study.csv` và `outputs/figures/owner_ablation_wape.png`.
+
+Ngoài đánh giá forecast, đề tài cũng thực hiện các kiểm tra bổ sung cho bước imputation, gồm uplift analysis, pseudo-stockout validation, cap sensitivity analysis và phân tích substitution bắt cặp theo khung giờ (peer sales cao hơn ~8.9% trong giờ stockout khi kiểm soát cùng chuỗi/cùng giờ, kèm event study quanh stockout onset). Phần chẩn đoán mô hình dự báo được thực hiện riêng thông qua residual diagnostics và prediction interval diagnostics.
 
 ## 5. Cách Tái Lập Thực Nghiệm
 
@@ -117,6 +140,13 @@ fresh50k_forecasting/
 - `outputs/tables/imputation_cap_sensitivity.csv`
 - `outputs/tables/owner_two_stage_forecasting_comparison.csv`
 - `outputs/tables/owner_two_stage_diagnostics.csv`
+- `outputs/tables/owner_ablation_study.csv`
+- `outputs/tables/substitution_paired_analysis.csv`
+- `outputs/figures/substitution_event_study.png`
+- `outputs/tables/owner_segment_wape.csv`
+- `outputs/tables/owner_model_significance_bootstrap.csv`
+- `outputs/figures/owner_case_study_forecasts.png`
+- `outputs/figures/owner_purged_split_timeline.png`
 - `outputs/figures/stockout_rate_over_time.png`
 - `outputs/figures/owner_observed_vs_recovered_demand.png`
 - `outputs/figures/owner_two_stage_forecast_comparison.png`

@@ -150,6 +150,94 @@ def _write_substitution_and_velocity_diagnostics(recovered: pd.DataFrame, featur
         case.to_csv(TABLES_DIR / "stockout_peer_substitution_cases.csv", index=False)
 
 
+def _write_substitution_paired_analysis(features_path: Path) -> None:
+    """Quantify the substitution effect with an hour-of-day controlled comparison.
+
+    A pooled stockout vs non-stockout comparison is confounded: stockouts
+    concentrate in low-traffic hours and whole peer groups often stock out
+    together. Pairing each series with itself at the same hour of day isolates
+    the substitution signal (peer sales rising while the product is out).
+    """
+    schema_cols = pq.read_schema(features_path).names
+    wanted = ["dt", "series_id", "sale_amount", "stockout_flag", "peer_sales_same_group", "peer_stockout_rate_same_group"]
+    cols = [column for column in wanted if column in schema_cols]
+    if "peer_sales_same_group" not in cols:
+        return
+    df = pd.read_parquet(features_path, columns=cols)
+    df["hour"] = pd.to_datetime(df["dt"]).dt.hour
+
+    def paired_means(frame: pd.DataFrame, value_col: str) -> tuple[float, float]:
+        cells = (
+            frame.groupby(["series_id", "hour", "stockout_flag"])[value_col]
+            .mean()
+            .unstack("stockout_flag")
+            .dropna()
+        )
+        return float(cells[1].mean()), float(cells[0].mean())
+
+    pooled_stockout = float(df.loc[df["stockout_flag"] == 1, "peer_sales_same_group"].mean())
+    pooled_available = float(df.loc[df["stockout_flag"] == 0, "peer_sales_same_group"].mean())
+    paired_stockout, paired_available = paired_means(df, "peer_sales_same_group")
+    sales_rank = df.groupby("series_id")["sale_amount"].mean()
+    top_series = sales_rank[sales_rank >= sales_rank.quantile(0.75)].index
+    top_stockout, top_available = paired_means(df[df["series_id"].isin(top_series)], "peer_sales_same_group")
+    costockout_stockout, costockout_available = paired_means(df, "peer_stockout_rate_same_group")
+
+    rows = [
+        ("Pooled raw comparison (confounded)", pooled_stockout, pooled_available),
+        ("Paired same series + same hour", paired_stockout, paired_available),
+        ("Paired, top-25% demand series", top_stockout, top_available),
+        ("Peer stockout rate (co-stockout, paired)", costockout_stockout, costockout_available),
+    ]
+    analysis = pd.DataFrame(rows, columns=["Comparison", "Peer signal | product stockout", "Peer signal | product available"])
+    analysis["Relative difference"] = (
+        analysis["Peer signal | product stockout"] / analysis["Peer signal | product available"] - 1
+    )
+    analysis.to_csv(TABLES_DIR / "substitution_paired_analysis.csv", index=False)
+
+    # Event study: peer sales around stockout onset vs same-(series, hour) baseline.
+    df = df.sort_values(["series_id", "dt"]).reset_index(drop=True)
+    grouped_flag = df.groupby("series_id", sort=False)["stockout_flag"]
+    onset = (df["stockout_flag"] == 1) & (grouped_flag.shift(1) == 0)
+    baseline = (
+        df[df["stockout_flag"] == 0]
+        .groupby(["series_id", "hour"])["peer_sales_same_group"]
+        .mean()
+        .rename("baseline_peer")
+    )
+    grouped_peer = df.groupby("series_id", sort=False)["peer_sales_same_group"]
+    grouped_hour = df.groupby("series_id", sort=False)["hour"]
+    offsets = range(-6, 7)
+    ratios = []
+    for offset in offsets:
+        peer_at_offset = grouped_peer.shift(-offset)
+        hour_at_offset = grouped_hour.shift(-offset)
+        frame = pd.DataFrame(
+            {
+                "series_id": df["series_id"],
+                "hour": hour_at_offset,
+                "peer": peer_at_offset,
+            }
+        ).loc[onset].dropna()
+        frame = frame.merge(baseline.reset_index(), on=["series_id", "hour"], how="left").dropna()
+        actual = float(frame["peer"].mean())
+        expected = float(frame["baseline_peer"].mean())
+        ratios.append({"Hours from stockout onset": offset, "Peer sales / same-hour baseline": actual / max(expected, 1e-9)})
+    event = pd.DataFrame(ratios)
+    event.to_csv(TABLES_DIR / "substitution_event_study.csv", index=False)
+
+    plt.figure(figsize=(9, 5))
+    plt.plot(event["Hours from stockout onset"], event["Peer sales / same-hour baseline"], marker="o", color="#059669")
+    plt.axhline(1.0, color="black", linewidth=1, linestyle="--", label="Same-hour baseline")
+    plt.axvline(0, color="#c2410c", linewidth=1, linestyle=":", label="Stockout onset")
+    plt.title("Peer Sales Around Stockout Onset (Same-Hour Baseline = 1.0)")
+    plt.xlabel("Hours relative to stockout onset")
+    plt.ylabel("Peer sales relative to baseline")
+    plt.legend()
+    plt.grid(alpha=0.25)
+    _save(FIGURES_DIR / "substitution_event_study.png")
+
+
 def _read_recovery_metric(metric_name: str, default: float = 1.0) -> float:
     path = TABLES_DIR / "owner_latent_recovery_summary.csv"
     if not path.exists():
@@ -187,6 +275,7 @@ def run_imputation_quality_checks(
     recovered = pd.read_parquet(recovered_path)
     recovered["dt"] = pd.to_datetime(recovered["dt"])
     _write_substitution_and_velocity_diagnostics(recovered, features_path)
+    _write_substitution_paired_analysis(features_path)
 
     total_observed = float(recovered["sale_amount"].sum())
     total_recovered = float(recovered["recovered_demand"].sum())

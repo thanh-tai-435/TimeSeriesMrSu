@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
+
+
+PROJECT_DIR = Path(__file__).resolve().parent
 
 
 COMMANDS = [
@@ -18,9 +22,10 @@ COMMANDS = [
 
 def main() -> None:
     for command in COMMANDS:
-        full_command = [sys.executable, *command]
+        script = PROJECT_DIR / command[0]
+        full_command = [sys.executable, str(script), *command[1:]]
         print(f"\n>>> {' '.join(full_command)}")
-        subprocess.run(full_command, check=True)
+        subprocess.run(full_command, check=True, cwd=PROJECT_DIR)
 
 
 if __name__ == "__main__":

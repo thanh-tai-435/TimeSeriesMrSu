@@ -26,3 +26,10 @@ data/
 *.synctex.gz
 *.synctex.gz.sum.synctex
 *.toc
+
+# Report documents (do not upload)
+*.docx
+~$*
+*.pdf
+!A.M/*.pdf
+!DoAnTimeSeries/*.pdf

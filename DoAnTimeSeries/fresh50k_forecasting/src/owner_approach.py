@@ -320,7 +320,13 @@ def _baseline_prediction_frame(
     return pred
 
 
-def _write_daily_split_summary(train: pd.DataFrame, val: pd.DataFrame, test: pd.DataFrame) -> None:
+def _write_daily_split_summary(
+    train: pd.DataFrame,
+    val: pd.DataFrame,
+    test: pd.DataFrame,
+    horizon_days: int = 7,
+    purge_days: int = 7,
+) -> None:
     rows = []
     for split_name, split_df in [("Train", train), ("Validation", val), ("Test", test)]:
         if split_df.empty:
@@ -334,6 +340,8 @@ def _write_daily_split_summary(train: pd.DataFrame, val: pd.DataFrame, test: pd.
                 "Origin end": split_df["date"].max(),
                 "Target window start": target_start,
                 "Target window end": target_end,
+                "Forecast horizon days": horizon_days,
+                "Purge gap days": purge_days,
                 "Rows": len(split_df),
                 "Series": split_df["series_id"].nunique(),
             }
@@ -422,10 +430,35 @@ def _write_owner_two_stage_diagnostics(val_predictions: pd.DataFrame, test_predi
     diagnostics = pd.DataFrame(rows)
     diagnostics.to_csv(TABLES_DIR / "owner_two_stage_diagnostics.csv", index=False)
     pd.DataFrame(nonoverlap_rows).to_csv(TABLES_DIR / "owner_two_stage_nonoverlap_diagnostics.csv", index=False)
-    pd.concat(interval_frames, ignore_index=True).to_csv(
-        TABLES_DIR / "owner_two_stage_prediction_intervals.csv",
-        index=False,
-    )
+    intervals = pd.concat(interval_frames, ignore_index=True)
+    intervals.to_csv(TABLES_DIR / "owner_two_stage_prediction_intervals.csv", index=False)
+    coverage_rows = []
+    for model_name, model_intervals in intervals.groupby("Model", sort=False):
+        coverage_rows.append(
+            {
+                "Model": model_name,
+                "80% interval coverage": float(
+                    (
+                        (model_intervals["y_true_recovered"] >= model_intervals["lower_80"])
+                        & (model_intervals["y_true_recovered"] <= model_intervals["upper_80"])
+                    ).mean()
+                ),
+                "95% interval coverage": float(
+                    (
+                        (model_intervals["y_true_recovered"] >= model_intervals["lower_95"])
+                        & (model_intervals["y_true_recovered"] <= model_intervals["upper_95"])
+                    ).mean()
+                ),
+                "Mean 80% interval width": float(
+                    (model_intervals["upper_80"] - model_intervals["lower_80"]).mean()
+                ),
+                "Mean 95% interval width": float(
+                    (model_intervals["upper_95"] - model_intervals["lower_95"]).mean()
+                ),
+                "N": int(len(model_intervals)),
+            }
+        )
+    pd.DataFrame(coverage_rows).to_csv(TABLES_DIR / "owner_two_stage_interval_coverage_summary.csv", index=False)
 
     best_model_name = diagnostics.sort_values("WAPE").iloc[0]["Model"]
     recovered = test_predictions[test_predictions["Model"] == best_model_name].copy()
@@ -457,7 +490,6 @@ def _write_owner_two_stage_diagnostics(val_predictions: pd.DataFrame, test_predi
     plt.grid(axis="x", alpha=0.25)
     _save(FIGURES_DIR / "owner_two_stage_diagnostics_wape.png")
 
-    intervals = pd.concat(interval_frames, ignore_index=True)
     recovered_intervals = intervals[intervals["Model"] == best_model_name]
     aggregate = recovered_intervals.groupby("date", as_index=False).agg(
         y_true_recovered=("y_true_recovered", "sum"),
@@ -535,12 +567,21 @@ def build_daily_forecasting_table(recovered_hourly: pd.DataFrame | None = None) 
     return daily
 
 
-def _daily_split(df: pd.DataFrame, test_days: int = 14, val_days: int = 7):
+def _daily_split(df: pd.DataFrame, test_days: int = 14, val_days: int = 7, horizon_days: int = 7):
+    """Create purged splits for next-horizon forecasting.
+
+    The target at date t is the sum from t+1 to t+horizon_days. A standard
+    split by origin date would let validation target windows overlap the test
+    period. The purge gap keeps the target windows of train, validation and
+    test separated.
+    """
     max_date = df["date"].max()
     test_start = max_date - pd.Timedelta(days=test_days) + pd.Timedelta(days=1)
-    val_start = test_start - pd.Timedelta(days=val_days)
-    train = df[df["date"] < val_start]
-    val = df[(df["date"] >= val_start) & (df["date"] < test_start)]
+    val_end = test_start - pd.Timedelta(days=horizon_days + 1)
+    val_start = val_end - pd.Timedelta(days=val_days) + pd.Timedelta(days=1)
+    train_end = val_start - pd.Timedelta(days=horizon_days + 1)
+    train = df[df["date"] <= train_end]
+    val = df[(df["date"] >= val_start) & (df["date"] <= val_end)]
     test = df[df["date"] >= test_start]
     return train, val, test
 
@@ -551,8 +592,9 @@ def run_owner_daily_forecasting(daily: pd.DataFrame | None = None, max_train_row
 
     if daily is None:
         daily = build_daily_forecasting_table()
-    train, val, test = _daily_split(daily)
-    _write_daily_split_summary(train, val, test)
+    horizon_days = 7
+    train, val, test = _daily_split(daily, horizon_days=horizon_days)
+    _write_daily_split_summary(train, val, test, horizon_days=horizon_days, purge_days=horizon_days)
 
     base_features = ["day_of_week", "is_weekend", "month", "stockout_rate"]
     observed_features = base_features + [col for col in daily.columns if col.startswith("observed_daily_lag_") or col.startswith("observed_daily_roll_")]
@@ -743,8 +785,250 @@ def run_owner_daily_forecasting(daily: pd.DataFrame | None = None, max_train_row
     return result
 
 
+def run_owner_ablation(daily: pd.DataFrame | None = None, max_train_rows: int = 300_000) -> pd.DataFrame:
+    """Ablation study for the seasonal-ML hybrid.
+
+    Each variant removes one component of the current model, retrains the
+    LightGBM stage with identical hyperparameters, re-selects the hybrid blend
+    weight on validation, and measures the change in test WAPE against the
+    recovered latent demand proxy.
+    """
+    from lightgbm import LGBMRegressor, early_stopping, log_evaluation
+
+    if daily is None:
+        daily = build_daily_forecasting_table()
+    train, val, test = _daily_split(daily)
+    train_sample = train.sort_values("date").tail(max_train_rows)
+
+    lag_cols = [col for col in daily.columns if col.startswith("recovered_daily_lag_")]
+    roll_cols = [col for col in daily.columns if col.startswith("recovered_daily_roll_")]
+    observed_cols = [
+        col
+        for col in daily.columns
+        if col.startswith("observed_daily_lag_") or col.startswith("observed_daily_roll_")
+    ]
+    calendar_cols = ["day_of_week", "is_weekend", "month"]
+    full_features = calendar_cols + ["stockout_rate"] + lag_cols + roll_cols
+    recovered_target = "target_next7_recovered_daily"
+
+    variants = [
+        ("Full model", full_features, recovered_target),
+        (
+            "No demand recovery (observed features + target)",
+            calendar_cols + ["stockout_rate"] + observed_cols,
+            "target_next7_observed_daily",
+        ),
+        ("No lag features", [c for c in full_features if c not in lag_cols], recovered_target),
+        ("No rolling features", [c for c in full_features if c not in roll_cols], recovered_target),
+        ("No calendar features", [c for c in full_features if c not in calendar_cols], recovered_target),
+        ("No stockout rate", [c for c in full_features if c != "stockout_rate"], recovered_target),
+    ]
+
+    y_val = val[recovered_target].to_numpy(dtype="float64")
+    y_test = test[recovered_target].to_numpy(dtype="float64")
+    seasonal_val = np.clip((val["recovered_daily_roll_mean_7"] * 7).to_numpy(dtype="float64"), 0, None)
+    seasonal_test = np.clip((test["recovered_daily_roll_mean_7"] * 7).to_numpy(dtype="float64"), 0, None)
+
+    rows = []
+    for variant_name, features, target_col in variants:
+        model = LGBMRegressor(
+            objective="regression",
+            n_estimators=350,
+            learning_rate=0.04,
+            num_leaves=48,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            random_state=42,
+            n_jobs=-1,
+        )
+        model.fit(
+            train_sample[features],
+            train_sample[target_col],
+            eval_set=[(val[features], val[target_col])],
+            eval_metric="rmse",
+            callbacks=[early_stopping(stopping_rounds=40), log_evaluation(period=0)],
+        )
+        val_pred = np.clip(model.predict(val[features]), 0, None)
+        test_pred = np.clip(model.predict(test[features]), 0, None)
+
+        blend_scores = [
+            (
+                evaluate_predictions(y_val, (1 - alpha) * seasonal_val + alpha * val_pred)["WAPE"],
+                float(alpha),
+            )
+            for alpha in np.linspace(0, 1, 21)
+        ]
+        _, best_alpha = min(blend_scores)
+        hybrid_test_pred = (1 - best_alpha) * seasonal_test + best_alpha * test_pred
+        rows.append(
+            {
+                "Ablation variant": variant_name,
+                "Features": len(features),
+                "Best iteration": int(model.best_iteration_ or 0),
+                "LightGBM weight (val)": best_alpha,
+                "Test WAPE (LightGBM only)": evaluate_predictions(y_test, test_pred)["WAPE"],
+                "Test WAPE (hybrid)": evaluate_predictions(y_test, hybrid_test_pred)["WAPE"],
+            }
+        )
+
+    ablation = pd.DataFrame(rows)
+    full_wape = float(ablation.loc[ablation["Ablation variant"] == "Full model", "Test WAPE (hybrid)"].iloc[0])
+    ablation["Delta hybrid WAPE vs full"] = ablation["Test WAPE (hybrid)"] - full_wape
+    ablation.to_csv(TABLES_DIR / "owner_ablation_study.csv", index=False)
+
+    ordered = ablation.sort_values("Test WAPE (hybrid)", ascending=True)
+    plt.figure(figsize=(10, 5))
+    colors = ["#059669" if name == "Full model" else "#78716c" for name in ordered["Ablation variant"]]
+    plt.barh(ordered["Ablation variant"], ordered["Test WAPE (hybrid)"], color=colors)
+    plt.axvline(full_wape, color="black", linewidth=1, linestyle="--", label="Full model")
+    plt.title("Ablation Study: Hybrid Test WAPE When Removing One Component")
+    plt.xlabel("Test WAPE (recovered latent demand proxy)")
+    plt.legend()
+    plt.grid(axis="x", alpha=0.25)
+    _save(FIGURES_DIR / "owner_ablation_wape.png")
+    return ablation
+
+
+def run_owner_supplementary_analysis(daily: pd.DataFrame | None = None) -> None:
+    """Segment-level errors, representative case studies, bootstrap significance, split timeline."""
+    if daily is None:
+        daily = pd.read_parquet(PROCESSED_DATA_DIR / "fresh50k_owner_daily_recovered_forecasting.parquet")
+    predictions = pd.read_csv(TABLES_DIR / "owner_two_stage_daily_predictions.csv", parse_dates=["date"])
+    models = [
+        "Recovered seasonal naive 7-day",
+        "Observed-sales forecasting",
+        "Recovered-demand forecasting",
+        "Recovered seasonal-ML hybrid",
+    ]
+    preds = predictions[predictions["Model"].isin(models)].copy()
+
+    # --- 1. segment-level WAPE (stockout and volume quartiles by series) ---
+    series_stats = daily.groupby("series_id").agg(
+        mean_stockout=("stockout_rate", "mean"),
+        mean_demand=("recovered_daily", "mean"),
+    )
+    quartile_labels = ["Q1 (thap nhat)", "Q2", "Q3", "Q4 (cao nhat)"]
+    series_stats["Stockout quartile"] = pd.qcut(series_stats["mean_stockout"], 4, labels=quartile_labels)
+    series_stats["Volume quartile"] = pd.qcut(series_stats["mean_demand"], 4, labels=quartile_labels)
+    merged = preds.merge(series_stats, on="series_id", how="left")
+    rows = []
+    for dim in ["Stockout quartile", "Volume quartile"]:
+        for segment, seg_df in merged.groupby(dim, observed=True):
+            row = {"Dimension": dim, "Segment": str(segment), "Series": seg_df["series_id"].nunique()}
+            for model in models:
+                m_df = seg_df[seg_df["Model"] == model]
+                row[model] = evaluate_predictions(m_df["y_true_recovered"], m_df["y_pred"])["WAPE"]
+            rows.append(row)
+    segment_wape = pd.DataFrame(rows)
+    segment_wape.to_csv(TABLES_DIR / "owner_segment_wape.csv", index=False)
+
+    plot_df = segment_wape[segment_wape["Dimension"] == "Stockout quartile"]
+    x = np.arange(len(plot_df))
+    width = 0.2
+    plt.figure(figsize=(10, 5))
+    colors = {"Recovered seasonal naive 7-day": "#78716c", "Observed-sales forecasting": "#c2410c",
+              "Recovered-demand forecasting": "#2563eb", "Recovered seasonal-ML hybrid": "#059669"}
+    for k, model in enumerate(models):
+        plt.bar(x + (k - 1.5) * width, plot_df[model], width, label=model, color=colors[model])
+    plt.xticks(x, plot_df["Segment"])
+    plt.title("Test WAPE by Series Stockout Quartile")
+    plt.xlabel("Stockout quartile (series-level mean stockout rate)")
+    plt.ylabel("WAPE")
+    plt.legend(fontsize=8)
+    plt.grid(axis="y", alpha=0.25)
+    _save(FIGURES_DIR / "owner_segment_wape.png")
+
+    # --- 2. case study on representative series ---
+    rep_path = TABLES_DIR / "representative_series.csv"
+    if rep_path.exists():
+        reps = pd.read_csv(rep_path)
+        fig, axes = plt.subplots(len(reps), 1, figsize=(11, 3.2 * len(reps)), sharex=True)
+        axes = np.atleast_1d(axes)
+        for ax, (_, rep) in zip(axes, reps.iterrows()):
+            sid = rep["series_id"]
+            for model, color, lw in [
+                ("Recovered seasonal naive 7-day", "#78716c", 1.1),
+                ("Recovered seasonal-ML hybrid", "#059669", 1.4),
+            ]:
+                s = preds[(preds["series_id"] == sid) & (preds["Model"] == model)].sort_values("date")
+                ax.plot(s["date"], s["y_pred"], label=model, color=color, linewidth=lw)
+            actual = preds[(preds["series_id"] == sid) & (preds["Model"] == models[0])].sort_values("date")
+            ax.plot(actual["date"], actual["y_true_recovered"], label="Recovered latent demand proxy",
+                    color="black", linewidth=1.6)
+            ax.set_title(f"{sid} ({rep['type']}, stockout rate {rep['stockout_rate']:.0%})", fontsize=10)
+            ax.grid(alpha=0.25)
+        axes[0].legend(fontsize=8)
+        axes[-1].set_xlabel("Forecast origin date")
+        fig.suptitle("Next-7-Day Forecasts on Representative Series (Test Set)", y=0.995)
+        fig.supylabel("Next 7-day total demand")
+        _save(FIGURES_DIR / "owner_case_study_forecasts.png")
+
+    # --- 3. series-level cluster bootstrap for WAPE differences ---
+    per_series = (
+        preds.assign(abs_err=lambda f: (f["y_true_recovered"] - f["y_pred"]).abs(),
+                     abs_y=lambda f: f["y_true_recovered"].abs())
+        .groupby(["Model", "series_id"])[["abs_err", "abs_y"]]
+        .sum()
+    )
+    series_ids = per_series.loc[models[0]].index.to_numpy()
+    err = {m: per_series.loc[m, "abs_err"].reindex(series_ids).to_numpy() for m in models}
+    tot = {m: per_series.loc[m, "abs_y"].reindex(series_ids).to_numpy() for m in models}
+    rng = np.random.default_rng(42)
+    n_boot = 2000
+    idx = rng.integers(0, len(series_ids), size=(n_boot, len(series_ids)))
+    comparisons = [
+        ("Recovered seasonal naive 7-day", "Recovered seasonal-ML hybrid"),
+        ("Observed-sales forecasting", "Recovered seasonal-ML hybrid"),
+        ("Recovered-demand forecasting", "Recovered seasonal-ML hybrid"),
+    ]
+    boot_rows = []
+    for base, challenger in comparisons:
+        diffs = (err[base][idx].sum(axis=1) / tot[base][idx].sum(axis=1)
+                 - err[challenger][idx].sum(axis=1) / tot[challenger][idx].sum(axis=1))
+        point = err[base].sum() / tot[base].sum() - err[challenger].sum() / tot[challenger].sum()
+        boot_rows.append(
+            {
+                "Baseline": base,
+                "Challenger": challenger,
+                "WAPE difference (baseline - challenger)": point,
+                "Bootstrap CI 2.5%": float(np.quantile(diffs, 0.025)),
+                "Bootstrap CI 97.5%": float(np.quantile(diffs, 0.975)),
+                "Share of resamples <= 0": float((diffs <= 0).mean()),
+                "Bootstrap resamples": n_boot,
+                "Resample unit": "series_id",
+            }
+        )
+    pd.DataFrame(boot_rows).to_csv(TABLES_DIR / "owner_model_significance_bootstrap.csv", index=False)
+
+    # --- 4. purged split timeline figure ---
+    split = pd.read_csv(TABLES_DIR / "owner_daily_split_summary.csv", parse_dates=[
+        "Origin start", "Origin end", "Target window start", "Target window end"])
+    fig, ax = plt.subplots(figsize=(11, 3.6))
+    colors_split = {"Train": "#2563eb", "Validation": "#c2410c", "Test": "#059669"}
+    for i, (_, r) in enumerate(split.iterrows()):
+        y = len(split) - i
+        ax.barh(y + 0.18, (r["Origin end"] - r["Origin start"]).days + 1, left=r["Origin start"],
+                height=0.32, color=colors_split[r["Split"]], label=f"{r['Split']} origins")
+        ax.barh(y - 0.18, (r["Target window end"] - r["Target window start"]).days + 1,
+                left=r["Target window start"], height=0.32, color=colors_split[r["Split"]], alpha=0.35,
+                label=f"{r['Split']} target windows")
+    for gap_start, gap_end in [
+        (split.iloc[0]["Target window end"], split.iloc[1]["Origin start"]),
+        (split.iloc[1]["Target window end"], split.iloc[2]["Origin start"]),
+    ]:
+        ax.axvspan(gap_start, gap_end, color="#facc15", alpha=0.25)
+    ax.set_yticks([3, 2, 1])
+    ax.set_yticklabels(split["Split"])
+    ax.set_title("Purged Time Split: Origins, Target Windows and Purge Gaps (7 days)")
+    ax.legend(fontsize=8, ncol=3)
+    ax.grid(axis="x", alpha=0.25)
+    _save(FIGURES_DIR / "owner_purged_split_timeline.png")
+
+
 def run_owner_aligned_pipeline() -> None:
     """Run the paper/repo-aligned two-stage pipeline."""
     recovered = recover_hourly_demand()
     daily = build_daily_forecasting_table(recovered)
     run_owner_daily_forecasting(daily)
+    run_owner_ablation(daily)
+    run_owner_supplementary_analysis(daily)

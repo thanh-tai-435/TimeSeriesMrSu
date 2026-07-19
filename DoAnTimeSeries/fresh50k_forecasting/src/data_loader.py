@@ -127,7 +127,7 @@ def load_fresh50k(
 
 def sample_by_series(
     df: pd.DataFrame,
-    sample_frac: float = 0.4,
+    sample_frac: float = 0.1,
     seed: int = 42,
     output_path: str | Path | None = None,
 ) -> pd.DataFrame:
